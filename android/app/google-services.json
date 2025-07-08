@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "114383086199",
+    "project_id": "gbcc-connect",
+    "storage_bucket": "gbcc-connect.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:114383086199:android:6aea06be4613bb12be5c72",
+        "android_client_info": {
+          "package_name": "com.gbccconnect.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiNQ2BAVm3bsilhfwhgdY-idhQv8jTCWc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:114383086199:android:4e8d865524a85de3be5c72",
+        "android_client_info": {
+          "package_name": "com.mycompany.networkingapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiNQ2BAVm3bsilhfwhgdY-idhQv8jTCWc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
