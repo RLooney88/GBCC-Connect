@@ -58,4 +58,51 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
   }
+
+  Future<bool> forgotPassword(String email) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final success = await _authService.forgotPassword(email);
+      return success;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> signInWithGoogle() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final success = await _authService.signInWithGoogle();
+      if (success) {
+        _isAuthenticated = true;
+        _currentUser = await _authService.getCurrentUser();
+      }
+      return success;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> signInWithApple() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final success = await _authService.signInWithApple();
+      if (success) {
+        _isAuthenticated = true;
+        _currentUser = await _authService.getCurrentUser();
+      }
+      return success;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }

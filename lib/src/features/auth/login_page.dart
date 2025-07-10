@@ -17,6 +17,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isForgotPasswordLoading = false;
 
   @override
   void dispose() {
@@ -46,6 +47,91 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<void> _handleForgotPassword() async {
+    if (_emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your email address first.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+        .hasMatch(_emailController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid email address.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isForgotPasswordLoading = true;
+    });
+
+    final authProvider = context.read<AuthProvider>();
+    final success =
+        await authProvider.forgotPassword(_emailController.text.trim());
+
+    if (mounted) {
+      setState(() {
+        _isForgotPasswordLoading = false;
+      });
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password reset link sent to your email.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to send reset link. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.signInWithGoogle();
+
+    if (success && mounted) {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.dashboard);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Google sign-in failed. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleAppleSignIn() async {
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.signInWithApple();
+
+    if (success && mounted) {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.dashboard);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Apple sign-in failed. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,8 +141,8 @@ class _LoginPageState extends State<LoginPage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
+              Color(0xFF00a6bb),
+              Color(0xFFFFFFFF),
             ],
           ),
         ),
@@ -77,10 +163,10 @@ class _LoginPageState extends State<LoginPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // App Logo/Title
-                        const Icon(
+                        Icon(
                           Icons.connect_without_contact,
                           size: 80,
-                          color: Color(0xFF667eea),
+                          color: Theme.of(context).primaryColor,
                         ),
                         const SizedBox(height: 16),
                         const Text(
@@ -162,6 +248,35 @@ class _LoginPageState extends State<LoginPage> {
                             return null;
                           },
                         ),
+                        const SizedBox(height: 16),
+
+                        // Forgot Password Link
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _isForgotPasswordLoading
+                                ? null
+                                : _handleForgotPassword,
+                            child: _isForgotPasswordLoading
+                                ? SizedBox(
+                                    height: 16,
+                                    width: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Theme.of(context).primaryColor,
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    'Forgot Password?',
+                                    style: TextStyle(
+                                      color: Theme.of(context).primaryColor,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                          ),
+                        ),
                         const SizedBox(height: 24),
 
                         // Login Button
@@ -175,7 +290,8 @@ class _LoginPageState extends State<LoginPage> {
                                     ? null
                                     : _handleLogin,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF667eea),
+                                  backgroundColor:
+                                      Theme.of(context).primaryColor,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
@@ -205,24 +321,103 @@ class _LoginPageState extends State<LoginPage> {
                             );
                           },
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
 
-                        // Demo credentials hint
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue[50],
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blue[200]!),
-                          ),
-                          child: const Text(
-                            'Demo: Use any email and password to login',
-                            style: TextStyle(
-                              color: Colors.blue,
-                              fontSize: 12,
+                        // Divider with "Or sign up with" text
+                        Row(
+                          children: [
+                            const Expanded(child: Divider()),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: Text(
+                                'Or sign up with',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                ),
+                              ),
                             ),
-                            textAlign: TextAlign.center,
-                          ),
+                            const Expanded(child: Divider()),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Social Login Buttons
+                        Row(
+                          children: [
+                            // Google Sign In Button
+                            Expanded(
+                              child: Consumer<AuthProvider>(
+                                builder: (context, authProvider, child) {
+                                  return SizedBox(
+                                    height: 50,
+                                    child: OutlinedButton.icon(
+                                      onPressed: authProvider.isLoading
+                                          ? null
+                                          : _handleGoogleSignIn,
+                                      icon: const Icon(
+                                        Icons.g_mobiledata,
+                                        color: Colors.red,
+                                        size: 24,
+                                      ),
+                                      label: const Text(
+                                        'Google',
+                                        style: TextStyle(
+                                          color: Colors.red,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        side:
+                                            const BorderSide(color: Colors.red),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            // Apple Sign In Button
+                            Expanded(
+                              child: Consumer<AuthProvider>(
+                                builder: (context, authProvider, child) {
+                                  return SizedBox(
+                                    height: 50,
+                                    child: OutlinedButton.icon(
+                                      onPressed: authProvider.isLoading
+                                          ? null
+                                          : _handleAppleSignIn,
+                                      icon: const Icon(
+                                        Icons.apple,
+                                        color: Colors.black,
+                                        size: 24,
+                                      ),
+                                      label: const Text(
+                                        'Apple',
+                                        style: TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        side: const BorderSide(
+                                            color: Colors.black),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

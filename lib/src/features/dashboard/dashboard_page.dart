@@ -13,7 +13,7 @@ class DashboardPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('GBCC Connect'),
-        backgroundColor: const Color(0xFF667eea),
+        backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -33,13 +33,13 @@ class DashboardPage extends StatelessWidget {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF667eea),
-              Color(0xFF764ba2),
+              Theme.of(context).primaryColor,
+              Theme.of(context).primaryColor.withOpacity(0.8),
             ],
           ),
         ),
@@ -69,7 +69,7 @@ class DashboardPage extends StatelessWidget {
                         children: [
                           CircleAvatar(
                             radius: 30,
-                            backgroundColor: const Color(0xFF667eea),
+                            backgroundColor: Theme.of(context).primaryColor,
                             child: Text(
                               authProvider.currentUser?.name
                                       .substring(0, 1)
@@ -128,40 +128,18 @@ class DashboardPage extends StatelessWidget {
                     Expanded(
                       child: _buildStatCard(
                         'Contacts',
-                        '24',
+                        '788',
                         Icons.people,
-                        Colors.blue,
+                        Theme.of(context).primaryColor,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _buildStatCard(
-                        'Messages',
-                        '156',
+                        'New Messages',
+                        '8',
                         Icons.message,
                         Colors.green,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        'Groups',
-                        '8',
-                        Icons.group,
-                        Colors.orange,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildStatCard(
-                        'Online',
-                        '12',
-                        Icons.circle,
-                        Colors.red,
                       ),
                     ),
                   ],
@@ -188,7 +166,7 @@ class DashboardPage extends StatelessWidget {
                         context,
                         'Contacts',
                         Icons.people_outline,
-                        Colors.blue,
+                        Theme.of(context).primaryColor,
                         AppRoutes.contactLibrary,
                       ),
                       _buildFeatureCard(
@@ -207,8 +185,8 @@ class DashboardPage extends StatelessWidget {
                       ),
                       _buildFeatureCard(
                         context,
-                        'Profile',
-                        Icons.person_outline,
+                        'Share QR Code',
+                        Icons.qr_code,
                         Colors.purple,
                         AppRoutes.profile,
                       ),

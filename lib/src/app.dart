@@ -16,6 +16,9 @@ class MyApp extends StatelessWidget {
 
   final SettingsController settingsController;
 
+  // Define the primary color
+  static const Color primaryColor = Color(0xFF00a6bb);
+
   @override
   Widget build(BuildContext context) {
     // Glue the SettingsController to the MaterialApp.
@@ -56,8 +59,54 @@ class MyApp extends StatelessWidget {
           // Define a light and dark color theme. Then, read the user's
           // preferred ThemeMode (light, dark, or system default) from the
           // SettingsController to display the correct theme.
-          theme: ThemeData(),
-          darkTheme: ThemeData.dark(),
+          theme: ThemeData(
+            primarySwatch: MaterialColor(primaryColor.value, {
+              50: primaryColor.withOpacity(0.1),
+              100: primaryColor.withOpacity(0.2),
+              200: primaryColor.withOpacity(0.3),
+              300: primaryColor.withOpacity(0.4),
+              400: primaryColor.withOpacity(0.5),
+              500: primaryColor,
+              600: primaryColor.withOpacity(0.7),
+              700: primaryColor.withOpacity(0.8),
+              800: primaryColor.withOpacity(0.9),
+              900: primaryColor.withOpacity(1.0),
+            }),
+            primaryColor: primaryColor,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            floatingActionButtonTheme: const FloatingActionButtonThemeData(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          darkTheme: ThemeData.dark().copyWith(
+            primaryColor: primaryColor,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            floatingActionButtonTheme: const FloatingActionButtonThemeData(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+            ),
+          ),
           themeMode: settingsController.themeMode,
 
           // Use centralized route generation

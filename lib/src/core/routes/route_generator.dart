@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../features/auth/login_page.dart';
 import '../../features/dashboard/dashboard_page.dart';
+import '../../features/profile/profile_page.dart';
+import '../../features/contacts/contact_library_page.dart';
+import '../../features/contacts/add_contact_page.dart';
+import '../../features/conversations/conversations_page.dart';
+import '../../features/conversations/chat_page.dart';
 import '../../features/sample_feature/sample_item_details_view.dart';
 import '../../features/sample_feature/sample_item_list_view.dart';
 import '../../features/settings/settings_controller.dart';
@@ -21,6 +26,31 @@ class RouteGenerator {
       case AppRoutes.dashboard:
         return MaterialPageRoute(
           builder: (_) => const DashboardPage(),
+        );
+
+      case AppRoutes.profile:
+        return MaterialPageRoute(
+          builder: (_) => const ProfilePage(),
+        );
+
+      case AppRoutes.contactLibrary:
+        return MaterialPageRoute(
+          builder: (_) => const ContactLibraryPage(),
+        );
+
+      case AppRoutes.addContact:
+        return MaterialPageRoute(
+          builder: (_) => const AddContactPage(),
+        );
+
+      case AppRoutes.conversations:
+        return MaterialPageRoute(
+          builder: (_) => const ConversationsPage(),
+        );
+
+      case AppRoutes.chat:
+        return MaterialPageRoute(
+          builder: (_) => const ChatPage(),
         );
 
       case AppRoutes.settings:
@@ -50,27 +80,6 @@ class RouteGenerator {
         return MaterialPageRoute(
           builder: (_) => const SampleItemDetailsView(),
         );
-
-      // TODO: Add other routes as they are implemented
-      // case AppRoutes.profile:
-      //   return MaterialPageRoute(
-      //     builder: (_) => const ProfilePage(),
-      //   );
-
-      // case AppRoutes.contactLibrary:
-      //   return MaterialPageRoute(
-      //     builder: (_) => const ContactLibraryPage(),
-      //   );
-
-      // case AppRoutes.addContact:
-      //   return MaterialPageRoute(
-      //     builder: (_) => const AddContactPage(),
-      //   );
-
-      // case AppRoutes.conversations:
-      //   return MaterialPageRoute(
-      //     builder: (_) => const ConversationsPage(),
-      //   );
 
       default:
         // If there is no such named route, return an error page

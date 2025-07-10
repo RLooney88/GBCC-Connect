@@ -61,4 +61,56 @@ class AuthService {
     await prefs.setString(_tokenKey, token);
     await prefs.setString(_userKey, jsonEncode(user.toJson()));
   }
+
+  // Forgot password functionality
+  Future<bool> forgotPassword(String email) async {
+    // Simulate API call delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // For demo purposes, always return true if email is valid
+    if (email.isNotEmpty &&
+        RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      return true;
+    }
+    return false;
+  }
+
+  // Social login methods
+  Future<bool> signInWithGoogle() async {
+    // Simulate API call delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // For demo purposes, create a mock user
+    final user = User(
+      id: 'google_${DateTime.now().millisecondsSinceEpoch}',
+      name: 'Google User',
+      email: 'google.user@example.com',
+      phone: null,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    final token = 'google_token_${DateTime.now().millisecondsSinceEpoch}';
+    await _saveUserData(token, user);
+    return true;
+  }
+
+  Future<bool> signInWithApple() async {
+    // Simulate API call delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    // For demo purposes, create a mock user
+    final user = User(
+      id: 'apple_${DateTime.now().millisecondsSinceEpoch}',
+      name: 'Apple User',
+      email: 'apple.user@example.com',
+      phone: null,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    final token = 'apple_token_${DateTime.now().millisecondsSinceEpoch}';
+    await _saveUserData(token, user);
+    return true;
+  }
 }

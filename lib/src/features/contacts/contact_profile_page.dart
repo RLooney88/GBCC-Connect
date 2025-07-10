@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/models/contact.dart';
-import '../../core/models/user.dart';
 
 class ContactProfilePage extends StatelessWidget {
   const ContactProfilePage({super.key});
@@ -14,7 +13,7 @@ class ContactProfilePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Contact Profile'),
-        backgroundColor: const Color(0xFF667eea),
+        backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -36,13 +35,13 @@ class ContactProfilePage extends StatelessWidget {
             // Header Section
             Container(
               width: double.infinity,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Color(0xFF667eea),
-                    Color(0xFF764ba2),
+                    Theme.of(context).primaryColor,
+                    Theme.of(context).primaryColor.withOpacity(0.8),
                   ],
                 ),
               ),
@@ -55,10 +54,10 @@ class ContactProfilePage extends StatelessWidget {
                       backgroundColor: Colors.white,
                       child: Text(
                         contact.name.substring(0, 1).toUpperCase(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 40,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF667eea),
+                          color: Theme.of(context).primaryColor,
                         ),
                       ),
                     ),
@@ -113,7 +112,7 @@ class ContactProfilePage extends StatelessWidget {
                       icon: const Icon(Icons.message),
                       label: const Text('Message'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF667eea),
+                        backgroundColor: Theme.of(context).primaryColor,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
@@ -136,8 +135,8 @@ class ContactProfilePage extends StatelessWidget {
                       icon: const Icon(Icons.call),
                       label: const Text('Call'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF667eea),
-                        side: const BorderSide(color: Color(0xFF667eea)),
+                        foregroundColor: Theme.of(context).primaryColor,
+                        side: BorderSide(color: Theme.of(context).primaryColor),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -167,6 +166,7 @@ class ContactProfilePage extends StatelessWidget {
 
                   // Email
                   _buildInfoTile(
+                    context: context,
                     icon: Icons.email_outlined,
                     title: 'Email',
                     subtitle: contact.email,
@@ -179,6 +179,7 @@ class ContactProfilePage extends StatelessWidget {
                   if (contact.phone != null) ...[
                     const SizedBox(height: 12),
                     _buildInfoTile(
+                      context: context,
                       icon: Icons.phone_outlined,
                       title: 'Phone',
                       subtitle: contact.phone!,
@@ -192,6 +193,7 @@ class ContactProfilePage extends StatelessWidget {
                   if (contact.company != null) ...[
                     const SizedBox(height: 12),
                     _buildInfoTile(
+                      context: context,
                       icon: Icons.business_outlined,
                       title: 'Company',
                       subtitle: contact.company!,
@@ -203,6 +205,7 @@ class ContactProfilePage extends StatelessWidget {
                   if (contact.position != null) ...[
                     const SizedBox(height: 12),
                     _buildInfoTile(
+                      context: context,
                       icon: Icons.work_outline,
                       title: 'Position',
                       subtitle: contact.position!,
@@ -269,6 +272,7 @@ class ContactProfilePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _buildInfoTile(
+                    context: context,
                     icon: Icons.calendar_today_outlined,
                     title: 'Added',
                     subtitle: _formatDate(contact.createdAt),
@@ -276,6 +280,7 @@ class ContactProfilePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _buildInfoTile(
+                    context: context,
                     icon: Icons.update_outlined,
                     title: 'Last Updated',
                     subtitle: _formatDate(contact.updatedAt),
@@ -291,6 +296,7 @@ class ContactProfilePage extends StatelessWidget {
   }
 
   Widget _buildInfoTile({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -305,7 +311,7 @@ class ContactProfilePage extends StatelessWidget {
       child: ListTile(
         leading: Icon(
           icon,
-          color: const Color(0xFF667eea),
+          color: Theme.of(context).primaryColor,
           size: 24,
         ),
         title: Text(
