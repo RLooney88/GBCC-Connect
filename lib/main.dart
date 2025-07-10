@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'src/app.dart';
+import 'src/core/providers/auth_provider.dart';
 import 'src/features/settings/settings_controller.dart';
 import 'src/features/settings/settings_service.dart';
 
@@ -16,5 +18,12 @@ void main() async {
   // Run the app and pass in the SettingsController. The app listens to the
   // SettingsController for changes, then passes it further down to the
   // SettingsView.
-  runApp(MyApp(settingsController: settingsController));
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: MyApp(settingsController: settingsController),
+    ),
+  );
 }

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
-import 'features/sample_feature/sample_item_details_view.dart';
-import 'features/sample_feature/sample_item_list_view.dart';
+import 'core/routes/app_routes.dart';
+import 'core/routes/route_generator.dart';
 import 'features/settings/settings_controller.dart';
 import 'features/settings/settings_view.dart';
 
@@ -60,24 +60,21 @@ class MyApp extends StatelessWidget {
           darkTheme: ThemeData.dark(),
           themeMode: settingsController.themeMode,
 
-          // Define a function to handle named routes in order to support
-          // Flutter web url navigation and deep linking.
-          onGenerateRoute: (RouteSettings routeSettings) {
-            return MaterialPageRoute<void>(
-              settings: routeSettings,
-              builder: (BuildContext context) {
-                switch (routeSettings.name) {
-                  case SettingsView.routeName:
-                    return SettingsView(controller: settingsController);
-                  case SampleItemDetailsView.routeName:
-                    return const SampleItemDetailsView();
-                  case SampleItemListView.routeName:
-                  default:
-                    return const SampleItemListView();
-                }
-              },
-            );
+          // Use centralized route generation
+          onGenerateRoute: (RouteSettings settings) {
+            // For settings route, pass the settings controller as arguments
+            if (settings.name == AppRoutes.settings) {
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (context) =>
+                    SettingsView(controller: settingsController),
+              );
+            }
+            return RouteGenerator.generateRoute(settings);
           },
+
+          // Set initial route
+          initialRoute: AppRoutes.login,
         );
       },
     );

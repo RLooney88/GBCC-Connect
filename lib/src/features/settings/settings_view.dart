@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../../core/routes/app_routes.dart';
 import 'settings_controller.dart';
 
 /// Displays the various settings that can be customized by the user.
@@ -9,7 +9,7 @@ import 'settings_controller.dart';
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key, required this.controller});
 
-  static const routeName = '/settings';
+  static const routeName = AppRoutes.settings;
 
   final SettingsController controller;
 
