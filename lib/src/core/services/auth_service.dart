@@ -17,8 +17,9 @@ class AuthService {
         id: '1',
         name: email.split('@')[0],
         email: email,
-        avatar: null,
         phone: null,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final token = 'demo_token_${DateTime.now().millisecondsSinceEpoch}';

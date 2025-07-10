@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/models/contact.dart';
+import '../../core/models/user.dart';
 
 class ContactLibraryPage extends StatefulWidget {
   const ContactLibraryPage({super.key});
@@ -33,6 +34,14 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
     _contacts = [
       Contact(
         id: '1',
+        ownerId: 'current-user-id',
+        owner: User(
+          id: 'current-user-id',
+          name: 'Current User',
+          email: 'current@user.com',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
         name: 'John Doe',
         email: 'john.doe@example.com',
         phone: '+1234567890',
@@ -43,6 +52,14 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
       ),
       Contact(
         id: '2',
+        ownerId: 'current-user-id',
+        owner: User(
+          id: 'current-user-id',
+          name: 'Current User',
+          email: 'current@user.com',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
         name: 'Jane Smith',
         email: 'jane.smith@example.com',
         phone: '+1234567891',
@@ -53,6 +70,14 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
       ),
       Contact(
         id: '3',
+        ownerId: 'current-user-id',
+        owner: User(
+          id: 'current-user-id',
+          name: 'Current User',
+          email: 'current@user.com',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
         name: 'Mike Johnson',
         email: 'mike.johnson@example.com',
         phone: '+1234567892',
@@ -63,6 +88,14 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
       ),
       Contact(
         id: '4',
+        ownerId: 'current-user-id',
+        owner: User(
+          id: 'current-user-id',
+          name: 'Current User',
+          email: 'current@user.com',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
         name: 'Sarah Wilson',
         email: 'sarah.wilson@example.com',
         phone: '+1234567893',
@@ -73,6 +106,14 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
       ),
       Contact(
         id: '5',
+        ownerId: 'current-user-id',
+        owner: User(
+          id: 'current-user-id',
+          name: 'Current User',
+          email: 'current@user.com',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
         name: 'David Brown',
         email: 'david.brown@example.com',
         phone: '+1234567894',

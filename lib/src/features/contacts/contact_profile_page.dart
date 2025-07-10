@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/models/contact.dart';
+import '../../core/models/user.dart';
 
 class ContactProfilePage extends StatelessWidget {
   const ContactProfilePage({super.key});

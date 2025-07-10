@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/models/contact.dart';
+import '../../core/models/user.dart';
 
 class AddContactPage extends StatefulWidget {
   const AddContactPage({super.key});
@@ -43,6 +44,14 @@ class _AddContactPageState extends State<AddContactPage> {
       // Create new contact
       final newContact = Contact(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
+        ownerId: 'current-user-id', // TODO: Get from auth service
+        owner: User(
+          id: 'current-user-id',
+          name: 'Current User',
+          email: 'current@user.com',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ), // TODO: Get from auth service
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         phone: _phoneController.text.trim().isEmpty
