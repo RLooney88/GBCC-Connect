@@ -45,4 +45,26 @@ class Message {
       'messageType': messageType,
     };
   }
+
+  Message copyWith({
+    String? id,
+    String? senderId,
+    String? receiverId,
+    String? content,
+    DateTime? timestamp,
+    bool? isRead,
+    String? attachmentUrl,
+    String? messageType,
+  }) {
+    return Message(
+      id: id ?? this.id,
+      senderId: senderId ?? this.senderId,
+      receiverId: receiverId ?? this.receiverId,
+      content: content ?? this.content,
+      timestamp: timestamp ?? this.timestamp,
+      isRead: isRead ?? this.isRead,
+      attachmentUrl: attachmentUrl ?? this.attachmentUrl,
+      messageType: messageType ?? this.messageType,
+    );
+  }
 }

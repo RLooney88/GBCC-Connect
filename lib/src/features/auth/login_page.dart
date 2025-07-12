@@ -18,6 +18,8 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isForgotPasswordLoading = false;
+  bool _isGoogleSignInLoading = false;
+  bool _isAppleSignInLoading = false;
 
   @override
   void dispose() {
@@ -29,43 +31,31 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       final authProvider = context.read<AuthProvider>();
-      final success = await authProvider.login(
+      final result = await authProvider.login(
         _emailController.text.trim(),
         _passwordController.text,
       );
 
-      if (success && mounted) {
+      if (result['success'] && mounted) {
         Navigator.of(context).pushReplacementNamed(AppRoutes.dashboard);
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login failed. Please check your credentials.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // Show specific error message
+        final errorMessage =
+            result['error'] ?? 'Login failed. Please try again.';
+        _showErrorSnackBar(errorMessage);
       }
     }
   }
 
   Future<void> _handleForgotPassword() async {
     if (_emailController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your email address first.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showWarningSnackBar('Please enter your email address first.');
       return;
     }
 
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
         .hasMatch(_emailController.text.trim())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid email address.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showWarningSnackBar('Please enter a valid email address.');
       return;
     }
 
@@ -83,53 +73,86 @@ class _LoginPageState extends State<LoginPage> {
       });
 
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password reset link sent to your email.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        _showSuccessSnackBar('Password reset link sent to your email.');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to send reset link. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showErrorSnackBar('Failed to send reset link. Please try again.');
       }
     }
   }
 
   Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isGoogleSignInLoading = true;
+    });
+
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.signInWithGoogle();
 
-    if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed(AppRoutes.dashboard);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Google sign-in failed. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (mounted) {
+      setState(() {
+        _isGoogleSignInLoading = false;
+      });
+
+      if (success) {
+        Navigator.of(context).pushReplacementNamed(AppRoutes.dashboard);
+      } else {
+        _showErrorSnackBar('Google sign-in failed. Please try again.');
+      }
     }
   }
 
   Future<void> _handleAppleSignIn() async {
+    setState(() {
+      _isAppleSignInLoading = true;
+    });
+
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.signInWithApple();
 
-    if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed(AppRoutes.dashboard);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Apple sign-in failed. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (mounted) {
+      setState(() {
+        _isAppleSignInLoading = false;
+      });
+
+      if (success) {
+        Navigator.of(context).pushReplacementNamed(AppRoutes.dashboard);
+      } else {
+        _showErrorSnackBar('Apple sign-in failed. Please try again.');
+      }
     }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showWarningSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
   }
 
   @override
@@ -344,30 +367,53 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 24),
 
                         // Social Login Buttons
-                        Row(
-                          children: [
-                            // Google Sign In Button
-                            Expanded(
-                              child: Consumer<AuthProvider>(
-                                builder: (context, authProvider, child) {
-                                  return SizedBox(
+                        Consumer<AuthProvider>(
+                          builder: (context, authProvider, child) {
+                            return Row(
+                              children: [
+                                // Google Sign In Button
+                                Expanded(
+                                  child: SizedBox(
                                     height: 50,
                                     child: OutlinedButton.icon(
-                                      onPressed: authProvider.isLoading
+                                      onPressed: (authProvider.isLoading ||
+                                              _isAppleSignInLoading ||
+                                              _isForgotPasswordLoading)
                                           ? null
                                           : _handleGoogleSignIn,
-                                      icon: const Icon(
-                                        Icons.g_mobiledata,
-                                        color: Colors.red,
-                                        size: 24,
-                                      ),
-                                      label: const Text(
-                                        'Google',
-                                        style: TextStyle(
-                                          color: Colors.red,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
+                                      icon: _isGoogleSignInLoading
+                                          ? const SizedBox(
+                                              height: 16,
+                                              width: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor:
+                                                    AlwaysStoppedAnimation<
+                                                        Color>(
+                                                  Colors.red,
+                                                ),
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.g_mobiledata,
+                                              color: Colors.red,
+                                              size: 24,
+                                            ),
+                                      label: _isGoogleSignInLoading
+                                          ? const Text(
+                                              'Signing in...',
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            )
+                                          : const Text(
+                                              'Google',
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
                                       style: OutlinedButton.styleFrom(
                                         side:
                                             const BorderSide(color: Colors.red),
@@ -377,33 +423,52 @@ class _LoginPageState extends State<LoginPage> {
                                         ),
                                       ),
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            // Apple Sign In Button
-                            Expanded(
-                              child: Consumer<AuthProvider>(
-                                builder: (context, authProvider, child) {
-                                  return SizedBox(
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                // Apple Sign In Button
+                                Expanded(
+                                  child: SizedBox(
                                     height: 50,
                                     child: OutlinedButton.icon(
-                                      onPressed: authProvider.isLoading
+                                      onPressed: (authProvider.isLoading ||
+                                              _isGoogleSignInLoading ||
+                                              _isForgotPasswordLoading)
                                           ? null
                                           : _handleAppleSignIn,
-                                      icon: const Icon(
-                                        Icons.apple,
-                                        color: Colors.black,
-                                        size: 24,
-                                      ),
-                                      label: const Text(
-                                        'Apple',
-                                        style: TextStyle(
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
+                                      icon: _isAppleSignInLoading
+                                          ? const SizedBox(
+                                              height: 16,
+                                              width: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor:
+                                                    AlwaysStoppedAnimation<
+                                                        Color>(
+                                                  Colors.black,
+                                                ),
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.apple,
+                                              color: Colors.black,
+                                              size: 24,
+                                            ),
+                                      label: _isAppleSignInLoading
+                                          ? const Text(
+                                              'Signing in...',
+                                              style: TextStyle(
+                                                color: Colors.black,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            )
+                                          : const Text(
+                                              'Apple',
+                                              style: TextStyle(
+                                                color: Colors.black,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
                                       style: OutlinedButton.styleFrom(
                                         side: const BorderSide(
                                             color: Colors.black),
@@ -413,11 +478,11 @@ class _LoginPageState extends State<LoginPage> {
                                         ),
                                       ),
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ],
                     ),

@@ -69,7 +69,7 @@ class ProfilePage extends StatelessWidget {
                         if (user?.email != null) ...[
                           const SizedBox(height: 4),
                           Text(
-                            user!.email!,
+                            user!.email,
                             style: const TextStyle(
                               fontSize: 16,
                               color: Colors.white70,

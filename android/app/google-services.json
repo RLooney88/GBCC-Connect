@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "258397022565",
+    "project_id": "networking-app-bfabb",
+    "storage_bucket": "networking-app-bfabb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:258397022565:android:a447d1200f7370a1d5198c",
+        "android_client_info": {
+          "package_name": "com.chamber.gbcc_connect_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "258397022565-3cdrgp2o2usf0vq6sairm3953n5eplk2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2TOP95aPpyCdanmoWKKTFTze3qTy3l0k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "258397022565-3cdrgp2o2usf0vq6sairm3953n5eplk2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

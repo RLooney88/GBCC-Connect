@@ -1,7 +1,6 @@
 class AppRoutes {
   // Auth routes
   static const String login = '/login';
-  static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
 
   // Main app routes
@@ -25,7 +24,6 @@ class AppRoutes {
   // Helper method to get all routes
   static List<String> get allRoutes => [
         login,
-        register,
         forgotPassword,
         dashboard,
         profile,

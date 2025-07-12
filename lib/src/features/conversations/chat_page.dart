@@ -145,9 +145,9 @@ class ChatPage extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(
+          const Expanded(
             child: TextField(
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Type a message...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(25)),
