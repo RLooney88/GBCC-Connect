@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "258397022565-5bvt98c01ttm6ruhb1igjdp5kh45qvg9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.chamber.gbcc_connect_app",
+            "certificate_hash": "671ef168af4cbdaecbef3a8b202b24f423f31ed5"
+          }
+        },
+        {
           "client_id": "258397022565-3cdrgp2o2usf0vq6sairm3953n5eplk2.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,6 +37,13 @@
             {
               "client_id": "258397022565-3cdrgp2o2usf0vq6sairm3953n5eplk2.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "258397022565-fp9stbp0lh91qkk2sbb2u9rajb00tesl.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.chamber.gbccconnectapp"
+              }
             }
           ]
         }

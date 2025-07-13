@@ -13,14 +13,14 @@ class FirebaseConfigService {
 
   FirebaseConfigService._internal();
 
-  late FirebaseAnalytics _analytics;
-  late FirebaseCrashlytics _crashlytics;
-  late FirebasePerformance _performance;
+  FirebaseAnalytics? _analytics;
+  FirebaseCrashlytics? _crashlytics;
+  FirebasePerformance? _performance;
   late FirebaseRemoteConfig _remoteConfig;
 
-  FirebaseAnalytics get analytics => _analytics;
-  FirebaseCrashlytics get crashlytics => _crashlytics;
-  FirebasePerformance get performance => _performance;
+  FirebaseAnalytics? get analytics => _analytics;
+  FirebaseCrashlytics? get crashlytics => _crashlytics;
+  FirebasePerformance? get performance => _performance;
   FirebaseRemoteConfig get remoteConfig => _remoteConfig;
 
   /// Initialize Firebase with proper configuration
@@ -33,7 +33,13 @@ class FirebaseConfigService {
       }
 
       // Load environment variables
-      await dotenv.load(fileName: ".env");
+      try {
+        await dotenv.load(fileName: ".env");
+        debugPrint('Environment file loaded successfully');
+      } catch (e) {
+        debugPrint('No .env file found, using default configuration');
+        // Continue with default configuration
+      }
 
       // Check if required Firebase configuration is available
       final apiKey = dotenv.env['FIREBASE_API_KEY'];
@@ -41,12 +47,19 @@ class FirebaseConfigService {
       final projectId = dotenv.env['FIREBASE_PROJECT_ID'];
 
       if (apiKey == null || appId == null || projectId == null) {
-        throw Exception(
+        debugPrint(
             'Firebase configuration is missing. Please ensure you have:\n'
             '1. Created a .env file with your Firebase configuration\n'
             '2. Added google-services.json to android/app/\n'
             '3. Added GoogleService-Info.plist to ios/Runner/\n'
             'Required environment variables: FIREBASE_API_KEY, FIREBASE_APP_ID, FIREBASE_PROJECT_ID');
+
+        // Try to initialize with platform-specific configuration files
+        debugPrint(
+            'Attempting to initialize Firebase with platform configuration files...');
+        await Firebase.initializeApp();
+        debugPrint('Firebase initialized with platform configuration');
+        return;
       }
 
       // Initialize Firebase Core
@@ -108,11 +121,13 @@ class FirebaseConfigService {
       _analytics = FirebaseAnalytics.instance;
 
       // Set user properties
-      await _analytics.setUserProperty(name: 'app_version', value: '1.0.0');
-      await _analytics.setUserProperty(
+      await _analytics!.setUserProperty(name: 'app_version', value: '1.0.0');
+      await _analytics!.setUserProperty(
           name: 'environment', value: dotenv.env['ENVIRONMENT']);
 
       debugPrint('Firebase Analytics initialized');
+    } else {
+      debugPrint('Firebase Analytics disabled');
     }
   }
 
@@ -122,12 +137,14 @@ class FirebaseConfigService {
       _crashlytics = FirebaseCrashlytics.instance;
 
       // Enable Crashlytics collection
-      await _crashlytics.setCrashlyticsCollectionEnabled(true);
+      await _crashlytics!.setCrashlyticsCollectionEnabled(true);
 
       // Set user identifier when available
       // await _crashlytics.setUserIdentifier('user-id');
 
       debugPrint('Firebase Crashlytics initialized');
+    } else {
+      debugPrint('Firebase Crashlytics disabled');
     }
   }
 
@@ -137,9 +154,11 @@ class FirebaseConfigService {
       _performance = FirebasePerformance.instance;
 
       // Enable performance collection
-      await _performance.setPerformanceCollectionEnabled(true);
+      await _performance!.setPerformanceCollectionEnabled(true);
 
       debugPrint('Firebase Performance initialized');
+    } else {
+      debugPrint('Firebase Performance disabled');
     }
   }
 
@@ -175,10 +194,18 @@ class FirebaseConfigService {
     Map<String, dynamic>? parameters,
   }) async {
     try {
-      await _analytics.logEvent(
-        name: name,
-        parameters: parameters as Map<String, Object>?,
-      );
+      if (_analytics != null) {
+        await _analytics!.logEvent(
+          name: name,
+          parameters: parameters as Map<String, Object>?,
+        );
+      } else {
+        // Fallback to console logging when Analytics is not available
+        debugPrint('Analytics event (Analytics disabled): $name');
+        if (parameters != null) {
+          debugPrint('Parameters: $parameters');
+        }
+      }
     } catch (e) {
       debugPrint('Error logging analytics event: $e');
     }
@@ -191,11 +218,22 @@ class FirebaseConfigService {
     String? reason,
   }) async {
     try {
-      await _crashlytics.recordError(
-        error,
-        stackTrace,
-        reason: reason,
-      );
+      if (_crashlytics != null) {
+        await _crashlytics!.recordError(
+          error,
+          stackTrace,
+          reason: reason,
+        );
+      } else {
+        // Fallback to console logging when Crashlytics is not available
+        debugPrint('Error (Crashlytics disabled): $error');
+        if (stackTrace != null) {
+          debugPrint('StackTrace: $stackTrace');
+        }
+        if (reason != null) {
+          debugPrint('Reason: $reason');
+        }
+      }
     } catch (e) {
       debugPrint('Error logging to Crashlytics: $e');
     }

@@ -12,6 +12,7 @@ class Contact {
   final String? notes;
   final bool isFavorite;
   final bool isBlocked;
+  final bool chamberMember;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -27,15 +28,42 @@ class Contact {
     this.notes,
     this.isFavorite = false,
     this.isBlocked = false,
+    this.chamberMember = false,
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory Contact.fromJson(Map<String, dynamic> json) {
+    // Handle owner data more robustly
+    User owner;
+    try {
+      if (json['owner'] != null && json['owner'] is Map<String, dynamic>) {
+        owner = User.fromJson(json['owner'] as Map<String, dynamic>);
+      } else {
+        // Create a minimal user object if owner data is missing
+        owner = User(
+          id: json['ownerId'] ?? '',
+          name: 'Unknown User',
+          email: '',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      }
+    } catch (e) {
+      // Fallback user object if parsing fails
+      owner = User(
+        id: json['ownerId'] ?? '',
+        name: 'Unknown User',
+        email: '',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    }
+
     return Contact(
       id: json['id'] ?? '',
       ownerId: json['ownerId'] ?? '',
-      owner: User.fromJson(json['owner'] ?? {}),
+      owner: owner,
       name: json['name'] ?? '',
       email: json['email'] ?? '',
       phone: json['phone'],
@@ -44,16 +72,48 @@ class Contact {
       notes: json['notes'],
       isFavorite: json['isFavorite'] ?? false,
       isBlocked: json['isBlocked'] ?? false,
-      createdAt:
-          DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt:
-          DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      chamberMember: json['chamberMember'] ?? false,
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
     );
   }
 
+  // Helper method to parse DateTime safely
+  static DateTime _parseDateTime(dynamic dateTimeValue) {
+    if (dateTimeValue == null) {
+      return DateTime.now();
+    }
+
+    if (dateTimeValue is DateTime) {
+      return dateTimeValue;
+    }
+
+    if (dateTimeValue is String) {
+      try {
+        return DateTime.parse(dateTimeValue);
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+
+    // Handle Firestore Timestamp objects
+    if (dateTimeValue.toString().contains('Timestamp')) {
+      try {
+        // This is a Firestore Timestamp, convert to DateTime
+        final timestamp = dateTimeValue as dynamic;
+        if (timestamp.toDate != null) {
+          return timestamp.toDate();
+        }
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+
+    return DateTime.now();
+  }
+
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
+    final json = {
       'ownerId': ownerId,
       'owner': owner.toJson(),
       'name': name,
@@ -64,9 +124,17 @@ class Contact {
       'notes': notes,
       'isFavorite': isFavorite,
       'isBlocked': isBlocked,
+      'chamberMember': chamberMember,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
+
+    // Only include ID if it's not empty
+    if (id.isNotEmpty) {
+      json['id'] = id;
+    }
+
+    return json;
   }
 
   Contact copyWith({
@@ -81,6 +149,7 @@ class Contact {
     String? notes,
     bool? isFavorite,
     bool? isBlocked,
+    bool? chamberMember,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -96,6 +165,7 @@ class Contact {
       notes: notes ?? this.notes,
       isFavorite: isFavorite ?? this.isFavorite,
       isBlocked: isBlocked ?? this.isBlocked,
+      chamberMember: chamberMember ?? this.chamberMember,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

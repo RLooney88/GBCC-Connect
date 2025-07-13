@@ -44,7 +44,7 @@ class FirebaseAuthService {
       // Set user identifier for crashlytics
       if (credential.user?.uid != null) {
         await _configService.crashlytics
-            .setUserIdentifier(credential.user!.uid);
+            ?.setUserIdentifier(credential.user!.uid);
       }
 
       return credential;
@@ -91,6 +91,13 @@ class FirebaseAuthService {
   /// Sign out user
   Future<void> signOut() async {
     try {
+      // Sign out from Google Sign-In first
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      if (await googleSignIn.isSignedIn()) {
+        await googleSignIn.signOut();
+      }
+
+      // Sign out from Firebase
       await _auth.signOut();
 
       // Clear secure storage
@@ -105,7 +112,7 @@ class FirebaseAuthService {
       );
 
       // Clear crashlytics user identifier
-      await _configService.crashlytics.setUserIdentifier('');
+      await _configService.crashlytics?.setUserIdentifier('');
     } catch (e, stackTrace) {
       await _configService.logError(e, stackTrace, reason: 'Sign out failed');
       rethrow;
@@ -294,8 +301,17 @@ class FirebaseAuthService {
   /// Sign in with Google
   Future<UserCredential> signInWithGoogle() async {
     try {
+      // Configure Google Sign-In with proper settings
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: [
+          'email',
+          'profile',
+        ],
+        // Remove explicit clientId to use default configuration from google-services.json
+      );
+
       // Begin interactive sign-in process
-      final GoogleSignInAccount? gUser = await GoogleSignIn().signIn();
+      final GoogleSignInAccount? gUser = await googleSignIn.signIn();
 
       if (gUser == null) {
         throw FirebaseAuthException(
@@ -306,6 +322,14 @@ class FirebaseAuthService {
 
       // Obtain auth details from request
       final GoogleSignInAuthentication gAuth = await gUser.authentication;
+
+      // Validate that we have the required tokens
+      if (gAuth.accessToken == null || gAuth.idToken == null) {
+        throw FirebaseAuthException(
+          code: 'google_sign_in_failed',
+          message: 'Failed to obtain Google authentication tokens.',
+        );
+      }
 
       // Create new credential for user
       final credential = GoogleAuthProvider.credential(
@@ -343,7 +367,7 @@ class FirebaseAuthService {
       // Set user identifier for crashlytics
       if (userCredential.user?.uid != null) {
         await _configService.crashlytics
-            .setUserIdentifier(userCredential.user!.uid);
+            ?.setUserIdentifier(userCredential.user!.uid);
       }
 
       return userCredential;
@@ -354,9 +378,19 @@ class FirebaseAuthService {
     } catch (e, stackTrace) {
       await _configService.logError(e, stackTrace,
           reason: 'Google sign in failed');
+
+      // Provide more specific error messages
+      String errorMessage = 'Google sign in failed. Please try again.';
+      if (e.toString().contains('ApiException: 10')) {
+        errorMessage =
+            'Google Sign-In configuration error. Please check your Firebase setup and ensure SHA-1 fingerprint is added.';
+      } else if (e.toString().contains('network')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      }
+
       throw FirebaseAuthException(
         code: 'google_sign_in_failed',
-        message: 'Google sign in failed. Please try again.',
+        message: errorMessage,
       );
     }
   }
@@ -420,7 +454,7 @@ class FirebaseAuthService {
       // Set user identifier for crashlytics
       if (userCredential.user?.uid != null) {
         await _configService.crashlytics
-            .setUserIdentifier(userCredential.user!.uid);
+            ?.setUserIdentifier(userCredential.user!.uid);
       }
 
       return userCredential;

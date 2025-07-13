@@ -137,7 +137,6 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final credential = await _authService.signInWithGoogle();
-
       if (credential.user != null) {
         _isAuthenticated = true;
         _currentUser = await _convertFirebaseUser(credential.user!);
