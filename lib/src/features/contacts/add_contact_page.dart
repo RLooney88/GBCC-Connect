@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/firebase_provider.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/models/contact.dart';
-import '../../core/models/user.dart';
 
 class AddContactPage extends StatefulWidget {
   const AddContactPage({super.key});
@@ -20,10 +20,19 @@ class _AddContactPageState extends State<AddContactPage> {
   final _phoneController = TextEditingController();
   final _positionController = TextEditingController();
   final _companyController = TextEditingController();
+  final _websiteController = TextEditingController();
   final _notesController = TextEditingController();
 
   bool _isLoading = false;
-  bool _isChamberMember = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize Firebase provider when the page loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<FirebaseProvider>().initialize();
+    });
+  }
 
   @override
   void dispose() {
@@ -32,6 +41,7 @@ class _AddContactPageState extends State<AddContactPage> {
     _phoneController.dispose();
     _positionController.dispose();
     _companyController.dispose();
+    _websiteController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -70,13 +80,6 @@ class _AddContactPageState extends State<AddContactPage> {
       ),
       body: Consumer<FirebaseProvider>(
         builder: (context, firebaseProvider, child) {
-          // Check if user is authenticated
-          if (firebaseProvider.currentUser == null) {
-            return const Center(
-              child: Text('Please log in to add contacts'),
-            );
-          }
-
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Form(
@@ -140,7 +143,7 @@ class _AddContactPageState extends State<AddContactPage> {
                   TextFormField(
                     controller: _emailController,
                     decoration: const InputDecoration(
-                      labelText: 'Email',
+                      labelText: 'Email *',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.email),
                     ),
@@ -201,21 +204,30 @@ class _AddContactPageState extends State<AddContactPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Chamber Member Checkbox
-                  CheckboxListTile(
-                    title: const Text('Chamber Member'),
-                    subtitle:
-                        const Text('Is this contact a member of the chamber?'),
-                    value: _isChamberMember,
-                    onChanged: (bool? value) {
-                      setState(() {
-                        _isChamberMember = value ?? false;
-                      });
+                  // Website Field
+                  TextFormField(
+                    controller: _websiteController,
+                    decoration: const InputDecoration(
+                      labelText: 'Website',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.language),
+                    ),
+                    keyboardType: TextInputType.url,
+                    validator: (value) {
+                      if (value != null && value.trim().isNotEmpty) {
+                        // Basic URL validation
+                        final urlPattern = RegExp(
+                          r'^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$',
+                          caseSensitive: false,
+                        );
+                        if (!urlPattern.hasMatch(value.trim())) {
+                          return 'Please enter a valid website URL';
+                        }
+                      }
+                      return null;
                     },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
                   // Notes Section
                   const Text(
@@ -286,7 +298,8 @@ class _AddContactPageState extends State<AddContactPage> {
 
     try {
       final firebaseProvider = context.read<FirebaseProvider>();
-      final currentUser = firebaseProvider.currentUser;
+      final authProvider = context.read<AuthProvider>();
+      final currentUser = authProvider.currentUser;
 
       if (currentUser == null) {
         _showErrorSnackBar('User not authenticated. Please log in again.');
@@ -299,6 +312,7 @@ class _AddContactPageState extends State<AddContactPage> {
         ownerId: currentUser.id,
         owner: currentUser,
         name: _nameController.text.trim(),
+        displayName: _nameController.text.trim(),
         email: _emailController.text.trim(),
         phone: _phoneController.text.trim().isEmpty
             ? null
@@ -306,6 +320,9 @@ class _AddContactPageState extends State<AddContactPage> {
         company: _companyController.text.trim().isEmpty
             ? null
             : _companyController.text.trim(),
+        website: _websiteController.text.trim().isEmpty
+            ? null
+            : _websiteController.text.trim(),
         position: _positionController.text.trim().isEmpty
             ? null
             : _positionController.text.trim(),
@@ -314,7 +331,7 @@ class _AddContactPageState extends State<AddContactPage> {
             : _notesController.text.trim(),
         isFavorite: false,
         isBlocked: false,
-        chamberMember: _isChamberMember,
+        chamberMember: false,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );

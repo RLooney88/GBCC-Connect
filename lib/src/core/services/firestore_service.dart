@@ -150,7 +150,37 @@ class FirestoreService {
       // Apply filters
       if (filters != null) {
         for (final filter in filters) {
-          query = query.where(filter.field, isEqualTo: filter.value);
+          switch (filter.type) {
+            case QueryFilterType.isEqualTo:
+              query = query.where(filter.field, isEqualTo: filter.value);
+              break;
+            case QueryFilterType.arrayContains:
+              query = query.where(filter.field, arrayContains: filter.value);
+              break;
+            case QueryFilterType.arrayContainsAny:
+              query = query.where(filter.field, arrayContainsAny: filter.value);
+              break;
+            case QueryFilterType.whereIn:
+              query = query.where(filter.field, whereIn: filter.value);
+              break;
+            case QueryFilterType.whereNotIn:
+              query = query.where(filter.field, whereNotIn: filter.value);
+              break;
+            case QueryFilterType.isLessThan:
+              query = query.where(filter.field, isLessThan: filter.value);
+              break;
+            case QueryFilterType.isLessThanOrEqualTo:
+              query =
+                  query.where(filter.field, isLessThanOrEqualTo: filter.value);
+              break;
+            case QueryFilterType.isGreaterThan:
+              query = query.where(filter.field, isGreaterThan: filter.value);
+              break;
+            case QueryFilterType.isGreaterThanOrEqualTo:
+              query = query.where(filter.field,
+                  isGreaterThanOrEqualTo: filter.value);
+              break;
+          }
         }
       }
 
@@ -192,7 +222,37 @@ class FirestoreService {
       // Apply filters
       if (filters != null) {
         for (final filter in filters) {
-          query = query.where(filter.field, isEqualTo: filter.value);
+          switch (filter.type) {
+            case QueryFilterType.isEqualTo:
+              query = query.where(filter.field, isEqualTo: filter.value);
+              break;
+            case QueryFilterType.arrayContains:
+              query = query.where(filter.field, arrayContains: filter.value);
+              break;
+            case QueryFilterType.arrayContainsAny:
+              query = query.where(filter.field, arrayContainsAny: filter.value);
+              break;
+            case QueryFilterType.whereIn:
+              query = query.where(filter.field, whereIn: filter.value);
+              break;
+            case QueryFilterType.whereNotIn:
+              query = query.where(filter.field, whereNotIn: filter.value);
+              break;
+            case QueryFilterType.isLessThan:
+              query = query.where(filter.field, isLessThan: filter.value);
+              break;
+            case QueryFilterType.isLessThanOrEqualTo:
+              query =
+                  query.where(filter.field, isLessThanOrEqualTo: filter.value);
+              break;
+            case QueryFilterType.isGreaterThan:
+              query = query.where(filter.field, isGreaterThan: filter.value);
+              break;
+            case QueryFilterType.isGreaterThanOrEqualTo:
+              query = query.where(filter.field,
+                  isGreaterThanOrEqualTo: filter.value);
+              break;
+          }
         }
       }
 
@@ -326,8 +386,22 @@ class FirestoreService {
 class QueryFilter {
   final String field;
   final dynamic value;
+  final QueryFilterType type;
 
-  QueryFilter(this.field, this.value);
+  QueryFilter(this.field, this.value, {this.type = QueryFilterType.isEqualTo});
+}
+
+/// Query filter types
+enum QueryFilterType {
+  isEqualTo,
+  arrayContains,
+  arrayContainsAny,
+  whereIn,
+  whereNotIn,
+  isLessThan,
+  isLessThanOrEqualTo,
+  isGreaterThan,
+  isGreaterThanOrEqualTo,
 }
 
 /// Query order class

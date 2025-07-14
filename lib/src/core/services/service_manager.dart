@@ -5,6 +5,7 @@ import 'firestore_service.dart';
 import 'user_service.dart';
 import 'contact_service.dart';
 import 'message_service.dart';
+import 'conversation_service.dart';
 
 /// Central service manager that provides access to all Firebase services
 class ServiceManager {
@@ -21,6 +22,7 @@ class ServiceManager {
   late final UserService _userService;
   late final ContactService _contactService;
   late final MessageService _messageService;
+  late final ConversationService _conversationService;
 
   // Track initialization status
   bool _isInitialized = false;
@@ -45,6 +47,7 @@ class ServiceManager {
       _userService = UserService.instance;
       _contactService = ContactService.instance;
       _messageService = MessageService.instance;
+      _conversationService = ConversationService.instance;
 
       // Enable offline persistence for Firestore
       await _firestoreService.enableOfflinePersistence();
@@ -84,6 +87,9 @@ class ServiceManager {
   /// Get message service
   MessageService get messages => _messageService;
 
+  /// Get conversation service
+  ConversationService get conversations => _conversationService;
+
   /// Check if services are initialized
   bool get isInitialized => _isInitialized;
 
@@ -121,6 +127,7 @@ class ServiceManager {
       status['users'] = _userService != null;
       status['contacts'] = _contactService != null;
       status['messages'] = _messageService != null;
+      status['conversations'] = _conversationService != null;
 
       return status;
     } catch (e) {
@@ -131,6 +138,7 @@ class ServiceManager {
         'users': false,
         'contacts': false,
         'messages': false,
+        'conversations': false,
       };
     }
   }
@@ -166,6 +174,14 @@ class ServiceManager {
           stats['messageStats'] = messageStats;
         } catch (e) {
           stats['messageStats'] = 'Error: $e';
+        }
+
+        try {
+          final conversationStats =
+              await _conversationService.getConversationStats(currentUser.uid);
+          stats['conversationStats'] = conversationStats;
+        } catch (e) {
+          stats['conversationStats'] = 'Error: $e';
         }
       }
 

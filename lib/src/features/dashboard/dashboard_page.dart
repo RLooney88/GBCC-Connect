@@ -1,12 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/firebase_provider.dart';
 import '../../core/routes/app_routes.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
   static const routeName = AppRoutes.dashboard;
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize Firebase provider when the page loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<FirebaseProvider>().initialize();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +111,7 @@ class DashboardPage extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  authProvider.currentUser?.name ?? 'User',
+                                  authProvider.currentUser?.name ?? 'N/A',
                                   style: const TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -123,26 +138,96 @@ class DashboardPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        'Contacts',
-                        '788',
-                        Icons.people,
-                        Theme.of(context).primaryColor,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildStatCard(
-                        'New Messages',
-                        '8',
-                        Icons.message,
-                        Colors.green,
-                      ),
-                    ),
-                  ],
+                Consumer<FirebaseProvider>(
+                  builder: (context, firebaseProvider, child) {
+                    return FutureBuilder<Map<String, dynamic>>(
+                      future: Future.wait([
+                        firebaseProvider.getContactStats(),
+                        firebaseProvider.getUnreadMessageCount(),
+                      ]).then((results) => {
+                            'contacts': results[0],
+                            'unreadMessages': results[1],
+                          }),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: _buildStatCard(
+                                  'Contacts',
+                                  '...',
+                                  Icons.people,
+                                  Theme.of(context).primaryColor,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildStatCard(
+                                  'New Messages',
+                                  '...',
+                                  Icons.message,
+                                  Colors.green,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+
+                        if (snapshot.hasError) {
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: _buildStatCard(
+                                  'Contacts',
+                                  '0',
+                                  Icons.people,
+                                  Theme.of(context).primaryColor,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildStatCard(
+                                  'New Messages',
+                                  '0',
+                                  Icons.message,
+                                  Colors.green,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+
+                        final data = snapshot.data ?? {};
+                        final contactStats =
+                            data['contacts'] as Map<String, int>? ?? {};
+                        final unreadMessages =
+                            data['unreadMessages'] as int? ?? 0;
+
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Contacts',
+                                '${contactStats['total'] ?? 0}',
+                                Icons.people,
+                                Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildStatCard(
+                                'New Messages',
+                                '$unreadMessages',
+                                Icons.message,
+                                Colors.green,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
                 ),
                 const SizedBox(height: 32),
 

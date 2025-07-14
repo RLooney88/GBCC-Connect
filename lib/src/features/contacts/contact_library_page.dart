@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/providers/firebase_provider.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/models/contact.dart';
 
 class ContactLibraryPage extends StatefulWidget {
@@ -14,12 +15,46 @@ class ContactLibraryPage extends StatefulWidget {
 }
 
 class _ContactLibraryPageState extends State<ContactLibraryPage> {
+  final TextEditingController _searchController = TextEditingController();
+  List<Contact> _filteredContacts = [];
+  bool _isSearching = false;
+
   @override
   void initState() {
     super.initState();
     // Load contacts when the page is initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Initialize Firebase provider
+      context.read<FirebaseProvider>().initialize();
       context.read<FirebaseProvider>().loadContacts();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _performSearch(String query) {
+    setState(() {
+      _isSearching = query.isNotEmpty;
+    });
+
+    if (query.isEmpty) {
+      setState(() {
+        _filteredContacts = [];
+      });
+      return;
+    }
+
+    final firebaseProvider = context.read<FirebaseProvider>();
+    firebaseProvider.searchContacts(query).then((results) {
+      if (mounted) {
+        setState(() {
+          _filteredContacts = results;
+        });
+      }
     });
   }
 
@@ -37,103 +72,228 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
             onPressed: () {
-              // TODO: Implement search functionality
+              setState(() {
+                if (_isSearching) {
+                  _searchController.clear();
+                  _isSearching = false;
+                  _filteredContacts = [];
+                } else {
+                  _isSearching = true;
+                }
+              });
             },
           ),
         ],
       ),
-      body: Consumer<FirebaseProvider>(
-        builder: (context, firebaseProvider, child) {
-          // Check if user is authenticated
-          if (firebaseProvider.currentUser == null) {
-            return const Center(
-              child: Text('Please log in to view contacts'),
-            );
-          }
-
-          // Show loading state
-          if (firebaseProvider.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-
-          // Show error state
-          if (firebaseProvider.error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red,
+      body: Column(
+        children: [
+          // Search Bar
+          if (_isSearching)
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search contacts...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _searchController.clear();
+                      _performSearch('');
+                    },
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error loading contacts',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(25),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    firebaseProvider.error!,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => firebaseProvider.loadContacts(),
-                    child: const Text('Retry'),
-                  ),
-                ],
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                ),
+                onChanged: _performSearch,
+                autofocus: true,
               ),
-            );
-          }
+            ),
 
-          // Show contacts list
-          final contacts = firebaseProvider.contacts;
+          // Contacts List
+          Expanded(
+            child: Consumer2<AuthProvider, FirebaseProvider>(
+              builder: (context, authProvider, firebaseProvider, child) {
+                // Check if user is authenticated using AuthProvider
+                if (authProvider.currentUser == null) {
+                  return const Center(
+                    child: Text('Please log in to view contacts'),
+                  );
+                }
 
-          if (contacts.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.people_outline,
-                    size: 64,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No contacts yet',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Add your first contact to get started',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () =>
-                        Navigator.pushNamed(context, AppRoutes.addContact),
-                    child: const Text('Add Contact'),
-                  ),
-                ],
-              ),
-            );
-          }
+                // Use StreamBuilder for real-time updates when not searching
+                if (!_isSearching) {
+                  return StreamBuilder<List<Contact>>(
+                    stream: firebaseProvider.streamContacts(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
 
-          return ListView.builder(
-            itemCount: contacts.length,
-            itemBuilder: (context, index) {
-              final contact = contacts[index];
-              return _buildContactTile(context, contact);
-            },
-          );
-        },
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                size: 64,
+                                color: Colors.red,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Error loading contacts',
+                                style:
+                                    Theme.of(context).textTheme.headlineSmall,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                snapshot.error.toString(),
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () =>
+                                    firebaseProvider.loadContacts(),
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      final contacts = snapshot.data ?? [];
+
+                      if (contacts.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.people_outline,
+                                size: 64,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No contacts yet',
+                                style:
+                                    Theme.of(context).textTheme.headlineSmall,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Add your first contact to get started',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pushNamed(
+                                    context, AppRoutes.addContact),
+                                child: const Text('Add Contact'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        itemCount: contacts.length,
+                        itemBuilder: (context, index) {
+                          final contact = contacts[index];
+                          return _buildContactTile(context, contact);
+                        },
+                      );
+                    },
+                  );
+                }
+
+                // Show loading state for search
+                if (firebaseProvider.isLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+
+                // Show error state
+                if (firebaseProvider.error != null) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading contacts',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          firebaseProvider.error!,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => firebaseProvider.loadContacts(),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // Get contacts based on search state
+                final contacts = _filteredContacts;
+
+                if (contacts.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No contacts found',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Try adjusting your search terms',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: contacts.length,
+                  itemBuilder: (context, index) {
+                    final contact = contacts[index];
+                    return _buildContactTile(context, contact);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.pushNamed(context, AppRoutes.addContact),
@@ -278,10 +438,14 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
                     });
                     break;
                   case 'call':
-                    // TODO: Implement call functionality
+                    _showCallFeature(context);
                     break;
                   case 'edit':
-                    // TODO: Navigate to edit contact page
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.editContact,
+                      arguments: contact,
+                    );
                     break;
                   case 'favorite':
                     try {
@@ -323,8 +487,21 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
           ],
         ),
         onTap: () {
-          // TODO: Navigate to contact details page
+          Navigator.pushNamed(
+            context,
+            '/contact-profile',
+            arguments: contact,
+          );
         },
+      ),
+    );
+  }
+
+  void _showCallFeature(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Call feature coming soon!'),
+        backgroundColor: Colors.blue,
       ),
     );
   }

@@ -4,10 +4,9 @@ import '../../features/dashboard/dashboard_page.dart';
 import '../../features/profile/profile_page.dart';
 import '../../features/contacts/contact_library_page.dart';
 import '../../features/contacts/add_contact_page.dart';
+import '../../features/contacts/edit_contact_page.dart';
 import '../../features/conversations/conversations_page.dart';
 import '../../features/conversations/chat_page.dart';
-import '../../features/sample_feature/sample_item_details_view.dart';
-import '../../features/sample_feature/sample_item_list_view.dart';
 import '../../features/settings/settings_controller.dart';
 import '../../features/settings/settings_view.dart';
 import 'app_routes.dart';
@@ -43,6 +42,11 @@ class RouteGenerator {
           builder: (_) => const AddContactPage(),
         );
 
+      case AppRoutes.editContact:
+        return MaterialPageRoute(
+          builder: (_) => const EditContactPage(),
+        );
+
       case AppRoutes.conversations:
         return MaterialPageRoute(
           builder: (_) => const ConversationsPage(),
@@ -65,25 +69,11 @@ class RouteGenerator {
         // just create an empty route.
         return _errorRoute();
 
-      case AppRoutes.sampleItemList:
-        return MaterialPageRoute(
-          builder: (_) => const SampleItemListView(),
-        );
-
-      case AppRoutes.sampleItemDetails:
-        // Extract item from arguments
-        if (args is Map<String, dynamic> && args.containsKey('item')) {
-          return MaterialPageRoute(
-            builder: (_) => SampleItemDetailsView(item: args['item']),
-          );
-        }
-        return MaterialPageRoute(
-          builder: (_) => const SampleItemDetailsView(),
-        );
-
       default:
         // If there is no such named route, return an error page
-        return _errorRoute();
+        return MaterialPageRoute(
+          builder: (_) => const LoginPage(),
+        );
     }
   }
 

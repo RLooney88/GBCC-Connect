@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import '../models/contact.dart';
 import '../models/message.dart';
+import '../models/conversation.dart';
 import '../services/service_manager.dart';
 
 /// Provider for managing Firebase operations and state
@@ -12,6 +13,7 @@ class FirebaseProvider extends ChangeNotifier {
   User? _currentUser;
   List<Contact> _contacts = [];
   List<Message> _messages = [];
+  List<Conversation> _conversations = [];
   List<User> _users = [];
   bool _isLoading = false;
   String? _error;
@@ -21,6 +23,7 @@ class FirebaseProvider extends ChangeNotifier {
   User? get currentUser => _currentUser;
   List<Contact> get contacts => _contacts;
   List<Message> get messages => _messages;
+  List<Conversation> get conversations => _conversations;
   List<User> get users => _users;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -67,8 +70,11 @@ class FirebaseProvider extends ChangeNotifier {
         _currentUser = user;
         notifyListeners();
 
-        // Load user's contacts
-        await loadContacts();
+        // Load user's contacts and conversations
+        await Future.wait([
+          loadContacts(),
+          loadConversations(),
+        ]);
       }
     } catch (e) {
       _setError('Failed to load user: $e');
@@ -201,13 +207,13 @@ class FirebaseProvider extends ChangeNotifier {
   }
 
   /// Load conversation between two users
-  Future<void> loadConversation(String user1Id, String user2Id) async {
+  Future<void> loadConversation(String ownerId, String participantId) async {
     try {
       _setLoading(true);
       _clearError();
 
-      final messages =
-          await _serviceManager.messages.getConversation(user1Id, user2Id);
+      final messages = await _serviceManager.messages
+          .getMessagesBetweenUsers(ownerId, participantId);
       _messages = messages;
       notifyListeners();
     } catch (e) {
@@ -218,21 +224,128 @@ class FirebaseProvider extends ChangeNotifier {
   }
 
   /// Send a message
-  Future<void> sendMessage(Message message) async {
+  Future<void> sendMessage(
+    String receiverId,
+    String content, {
+    String? attachmentUrl,
+    String messageType = 'text',
+  }) async {
     try {
+      if (_currentUser == null) {
+        _setError('User not authenticated');
+        return;
+      }
+
       _setLoading(true);
       _clearError();
 
-      final messageId = await _serviceManager.messages.createMessage(message);
+      final messageId = await _serviceManager.messages.sendMessage(
+        _currentUser!.id,
+        receiverId,
+        content,
+        attachmentUrl: attachmentUrl,
+        messageType: messageType,
+      );
+
       print('Message sent with ID: $messageId');
 
-      // Add to local list
-      _messages.add(message.copyWith(id: messageId));
-      notifyListeners();
+      // Reload conversations to update last message
+      await loadConversations();
     } catch (e) {
       _setError('Failed to send message: $e');
     } finally {
       _setLoading(false);
+    }
+  }
+
+  /// Load messages for a specific conversation
+  Future<void> loadMessagesForConversation(String conversationId) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final messages = await _serviceManager.messages
+          .getMessagesForConversation(conversationId);
+      _messages = messages;
+      notifyListeners();
+    } catch (e) {
+      _setError('Failed to load messages for conversation: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Get or create conversation between two users
+  Future<Conversation?> getOrCreateConversation(
+      String user1Id, String user2Id) async {
+    try {
+      return await _serviceManager.conversations
+          .getOrCreateConversation(user1Id, user2Id);
+    } catch (e) {
+      _setError('Failed to get or create conversation: $e');
+      return null;
+    }
+  }
+
+  /// Create a new conversation
+  Future<Conversation?> createConversation(
+      String ownerId, String participantId) async {
+    try {
+      return await _serviceManager.conversations
+          .createConversation(ownerId, participantId);
+    } catch (e) {
+      _setError('Failed to create conversation: $e');
+      return null;
+    }
+  }
+
+  /// Archive or unarchive conversation
+  Future<void> toggleConversationArchive(
+      String conversationId, bool isActive) async {
+    try {
+      await _serviceManager.conversations
+          .toggleConversationArchive(conversationId, isActive);
+
+      // Reload conversations to reflect changes
+      await loadConversations();
+    } catch (e) {
+      _setError('Failed to toggle conversation archive: $e');
+    }
+  }
+
+  /// Delete conversation
+  Future<void> deleteConversation(String conversationId) async {
+    try {
+      await _serviceManager.conversations.deleteConversation(conversationId);
+
+      // Reload conversations to reflect changes
+      await loadConversations();
+    } catch (e) {
+      _setError('Failed to delete conversation: $e');
+    }
+  }
+
+  /// Get active conversations
+  Future<List<Conversation>> getActiveConversations() async {
+    try {
+      if (_currentUser == null) return [];
+      return await _serviceManager.conversations
+          .getActiveConversations(_currentUser!.id);
+    } catch (e) {
+      _setError('Failed to get active conversations: $e');
+      return [];
+    }
+  }
+
+  /// Get archived conversations
+  Future<List<Conversation>> getArchivedConversations() async {
+    try {
+      if (_currentUser == null) return [];
+      return await _serviceManager.conversations
+          .getArchivedConversations(_currentUser!.id);
+    } catch (e) {
+      _setError('Failed to get archived conversations: $e');
+      return [];
     }
   }
 
@@ -296,6 +409,85 @@ class FirebaseProvider extends ChangeNotifier {
     }
   }
 
+  /// Load user's conversations
+  Future<void> loadConversations() async {
+    try {
+      if (_currentUser == null) return;
+
+      _setLoading(true);
+      _clearError();
+
+      final conversations = await _serviceManager.conversations
+          .getConversationsForUser(_currentUser!.id);
+      _conversations = conversations;
+      notifyListeners();
+    } catch (e) {
+      _setError('Failed to load conversations: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Get conversation statistics
+  Future<Map<String, int>> getConversationStats() async {
+    try {
+      if (_currentUser == null) return {};
+      return await _serviceManager.conversations
+          .getConversationStats(_currentUser!.id);
+    } catch (e) {
+      _setError('Failed to get conversation stats: $e');
+      return {};
+    }
+  }
+
+  /// Get unread message count
+  Future<int> getUnreadMessageCount() async {
+    try {
+      if (_currentUser == null) return 0;
+      return await _serviceManager.conversations
+          .getUnreadMessageCount(_currentUser!.id);
+    } catch (e) {
+      _setError('Failed to get unread message count: $e');
+      return 0;
+    }
+  }
+
+  /// Mark messages as read between two users
+  Future<void> markMessagesAsRead(String senderId) async {
+    try {
+      if (_currentUser == null) return;
+
+      await _serviceManager.messages
+          .markMessagesAsRead(_currentUser!.id, senderId);
+
+      // Reload conversations to update unread counts
+      await loadConversations();
+    } catch (e) {
+      _setError('Failed to mark messages as read: $e');
+    }
+  }
+
+  /// Mark conversation as read
+  Future<void> markConversationAsRead(String conversationId) async {
+    try {
+      if (_currentUser == null) return;
+      await _serviceManager.conversations
+          .markConversationAsRead(conversationId, _currentUser!.id);
+
+      // Reload conversations to update unread counts
+      await loadConversations();
+    } catch (e) {
+      _setError('Failed to mark conversation as read: $e');
+    }
+  }
+
+  /// Stream conversations in real-time
+  Stream<List<Conversation>> streamConversations() {
+    if (_currentUser == null) return Stream.value([]);
+    return _serviceManager.conversations
+        .streamConversationsForUser(_currentUser!.id);
+  }
+
   /// Stream contacts in real-time
   Stream<List<Contact>> streamContacts() {
     if (_currentUser == null) return Stream.value([]);
@@ -304,7 +496,8 @@ class FirebaseProvider extends ChangeNotifier {
 
   /// Stream conversation in real-time
   Stream<List<Message>> streamConversation(String user1Id, String user2Id) {
-    return _serviceManager.messages.streamConversation(user1Id, user2Id);
+    return _serviceManager.messages
+        .streamMessagesBetweenUsers(user1Id, user2Id);
   }
 
   /// Stream users in real-time
@@ -335,6 +528,7 @@ class FirebaseProvider extends ChangeNotifier {
     _currentUser = null;
     _contacts.clear();
     _messages.clear();
+    _conversations.clear();
     _users.clear();
     _error = null;
     _isInitialized = false;

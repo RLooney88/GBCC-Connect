@@ -5,9 +5,11 @@ class Contact {
   final String ownerId; // ID of the user who owns this contact
   final User owner; // Reference to the owner user object
   final String name;
+  final String displayName;
   final String email;
   final String? phone;
   final String? company;
+  final String? website;
   final String? position;
   final String? notes;
   final bool isFavorite;
@@ -21,9 +23,11 @@ class Contact {
     required this.ownerId,
     required this.owner,
     required this.name,
+    required this.displayName,
     required this.email,
     this.phone,
     this.company,
+    this.website,
     this.position,
     this.notes,
     this.isFavorite = false,
@@ -65,9 +69,11 @@ class Contact {
       ownerId: json['ownerId'] ?? '',
       owner: owner,
       name: json['name'] ?? '',
+      displayName: json['displayName'] ?? '',
       email: json['email'] ?? '',
       phone: json['phone'],
       company: json['company'],
+      website: json['website'],
       position: json['position'],
       notes: json['notes'],
       isFavorite: json['isFavorite'] ?? false,
@@ -117,9 +123,11 @@ class Contact {
       'ownerId': ownerId,
       'owner': owner.toJson(),
       'name': name,
+      'displayName': displayName,
       'email': email,
       'phone': phone,
       'company': company,
+      'website': website,
       'position': position,
       'notes': notes,
       'isFavorite': isFavorite,
@@ -142,9 +150,11 @@ class Contact {
     String? ownerId,
     User? owner,
     String? name,
+    String? displayName,
     String? email,
     String? phone,
     String? company,
+    String? website,
     String? position,
     String? notes,
     bool? isFavorite,
@@ -158,9 +168,11 @@ class Contact {
       ownerId: ownerId ?? this.ownerId,
       owner: owner ?? this.owner,
       name: name ?? this.name,
+      displayName: displayName ?? this.displayName,
       email: email ?? this.email,
       phone: phone ?? this.phone,
       company: company ?? this.company,
+      website: website ?? this.website,
       position: position ?? this.position,
       notes: notes ?? this.notes,
       isFavorite: isFavorite ?? this.isFavorite,

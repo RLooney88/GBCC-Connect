@@ -369,113 +369,106 @@ class _LoginPageState extends State<LoginPage> {
                         // Social Login Buttons
                         Consumer<AuthProvider>(
                           builder: (context, authProvider, child) {
-                            return Row(
+                            return Column(
                               children: [
                                 // Google Sign In Button
-                                Expanded(
-                                  child: SizedBox(
-                                    height: 50,
-                                    child: OutlinedButton.icon(
-                                      onPressed: (authProvider.isLoading ||
-                                              _isAppleSignInLoading ||
-                                              _isForgotPasswordLoading)
-                                          ? null
-                                          : _handleGoogleSignIn,
-                                      icon: _isGoogleSignInLoading
-                                          ? const SizedBox(
-                                              height: 16,
-                                              width: 16,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                valueColor:
-                                                    AlwaysStoppedAnimation<
-                                                        Color>(
-                                                  Colors.red,
-                                                ),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: OutlinedButton.icon(
+                                    onPressed: (authProvider.isLoading ||
+                                            _isAppleSignInLoading ||
+                                            _isForgotPasswordLoading)
+                                        ? null
+                                        : _handleGoogleSignIn,
+                                    icon: _isGoogleSignInLoading
+                                        ? const SizedBox(
+                                            height: 16,
+                                            width: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                Colors.red,
                                               ),
-                                            )
-                                          : const Icon(
-                                              Icons.g_mobiledata,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.g_mobiledata,
+                                            color: Colors.red,
+                                            size: 24,
+                                          ),
+                                    label: _isGoogleSignInLoading
+                                        ? const Text(
+                                            'Signing in...',
+                                            style: TextStyle(
                                               color: Colors.red,
-                                              size: 24,
+                                              fontWeight: FontWeight.w600,
                                             ),
-                                      label: _isGoogleSignInLoading
-                                          ? const Text(
-                                              'Signing in...',
-                                              style: TextStyle(
-                                                color: Colors.red,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            )
-                                          : const Text(
-                                              'Google',
-                                              style: TextStyle(
-                                                color: Colors.red,
-                                                fontWeight: FontWeight.w600,
-                                              ),
+                                          )
+                                        : const Text(
+                                            'Google',
+                                            style: TextStyle(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.w600,
                                             ),
-                                      style: OutlinedButton.styleFrom(
-                                        side:
-                                            const BorderSide(color: Colors.red),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
+                                          ),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: Colors.red),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 16),
+                                const SizedBox(height: 16),
                                 // Apple Sign In Button
-                                Expanded(
-                                  child: SizedBox(
-                                    height: 50,
-                                    child: OutlinedButton.icon(
-                                      onPressed: (authProvider.isLoading ||
-                                              _isGoogleSignInLoading ||
-                                              _isForgotPasswordLoading)
-                                          ? null
-                                          : _handleAppleSignIn,
-                                      icon: _isAppleSignInLoading
-                                          ? const SizedBox(
-                                              height: 16,
-                                              width: 16,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                valueColor:
-                                                    AlwaysStoppedAnimation<
-                                                        Color>(
-                                                  Colors.black,
-                                                ),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: OutlinedButton.icon(
+                                    onPressed: (authProvider.isLoading ||
+                                            _isGoogleSignInLoading ||
+                                            _isForgotPasswordLoading)
+                                        ? null
+                                        : _handleAppleSignIn,
+                                    icon: _isAppleSignInLoading
+                                        ? const SizedBox(
+                                            height: 16,
+                                            width: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                Colors.black,
                                               ),
-                                            )
-                                          : const Icon(
-                                              Icons.apple,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.apple,
+                                            color: Colors.black,
+                                            size: 24,
+                                          ),
+                                    label: _isAppleSignInLoading
+                                        ? const Text(
+                                            'Signing in...',
+                                            style: TextStyle(
                                               color: Colors.black,
-                                              size: 24,
+                                              fontWeight: FontWeight.w600,
                                             ),
-                                      label: _isAppleSignInLoading
-                                          ? const Text(
-                                              'Signing in...',
-                                              style: TextStyle(
-                                                color: Colors.black,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            )
-                                          : const Text(
-                                              'Apple',
-                                              style: TextStyle(
-                                                color: Colors.black,
-                                                fontWeight: FontWeight.w600,
-                                              ),
+                                          )
+                                        : const Text(
+                                            'Apple',
+                                            style: TextStyle(
+                                              color: Colors.black,
+                                              fontWeight: FontWeight.w600,
                                             ),
-                                      style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(
-                                            color: Colors.black),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
+                                          ),
+                                    style: OutlinedButton.styleFrom(
+                                      side:
+                                          const BorderSide(color: Colors.black),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                   ),

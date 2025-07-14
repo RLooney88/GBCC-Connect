@@ -11,6 +11,7 @@ class AppRoutes {
   // Contact routes
   static const String contactLibrary = '/contact-library';
   static const String addContact = '/add-contact';
+  static const String editContact = '/edit-contact';
   static const String contactDetails = '/contact-details';
 
   // Conversation routes
@@ -30,6 +31,7 @@ class AppRoutes {
         settings,
         contactLibrary,
         addContact,
+        editContact,
         contactDetails,
         conversations,
         chat,
