@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Message {
   final String id;
   final String senderId;
@@ -25,12 +27,43 @@ class Message {
       senderId: json['senderId'] ?? '',
       receiverId: json['receiverId'] ?? '',
       content: json['content'] ?? '',
-      timestamp:
-          DateTime.parse(json['timestamp'] ?? DateTime.now().toIso8601String()),
+      timestamp: _parseDateTime(json['timestamp']),
       isRead: json['isRead'] ?? false,
       attachmentUrl: json['attachmentUrl'],
       messageType: json['messageType'] ?? 'text',
     );
+  }
+
+  // Helper method to parse DateTime safely
+  static DateTime _parseDateTime(dynamic dateTimeValue) {
+    if (dateTimeValue == null) {
+      return DateTime.now();
+    }
+
+    if (dateTimeValue is DateTime) {
+      return dateTimeValue;
+    }
+
+    if (dateTimeValue is String) {
+      try {
+        return DateTime.parse(dateTimeValue);
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+
+    // Handle Firestore Timestamp objects
+    if (dateTimeValue.toString().contains('Timestamp')) {
+      try {
+        // This is a Firestore Timestamp, convert to DateTime
+        final timestamp = dateTimeValue as Timestamp;
+        return timestamp.toDate();
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+
+    return DateTime.now();
   }
 
   Map<String, dynamic> toJson() {
