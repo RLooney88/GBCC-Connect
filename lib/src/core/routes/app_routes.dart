@@ -6,6 +6,7 @@ class AppRoutes {
   // Main app routes
   static const String dashboard = '/dashboard';
   static const String profile = '/profile';
+  static const String editProfile = '/edit-profile';
   static const String settings = '/settings';
 
   // Contact routes
@@ -28,6 +29,7 @@ class AppRoutes {
         forgotPassword,
         dashboard,
         profile,
+        editProfile,
         settings,
         contactLibrary,
         addContact,

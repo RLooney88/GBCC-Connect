@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import '../../features/auth/login_page.dart';
 import '../../features/dashboard/dashboard_page.dart';
 import '../../features/profile/profile_page.dart';
+import '../../features/profile/edit_profile_page.dart';
 import '../../features/contacts/contact_library_page.dart';
 import '../../features/contacts/add_contact_page.dart';
 import '../../features/contacts/edit_contact_page.dart';
 import '../../features/conversations/conversations_page.dart';
 import '../../features/conversations/chat_page.dart';
 import '../../features/settings/settings_controller.dart';
+import '../../features/settings/settings_service.dart';
 import '../../features/settings/settings_view.dart';
 import 'app_routes.dart';
 
@@ -30,6 +32,11 @@ class RouteGenerator {
       case AppRoutes.profile:
         return MaterialPageRoute(
           builder: (_) => const ProfilePage(),
+        );
+
+      case AppRoutes.editProfile:
+        return MaterialPageRoute(
+          builder: (_) => const EditProfilePage(),
         );
 
       case AppRoutes.contactLibrary:
@@ -58,35 +65,19 @@ class RouteGenerator {
         );
 
       case AppRoutes.settings:
-        // Extract settings controller from arguments
-        if (args is SettingsController) {
-          return MaterialPageRoute(
-            builder: (_) => SettingsView(controller: args),
-          );
-        }
-        // If no arguments were passed, it means the route is
-        // being navigated to without any parameters, so we'll
-        // just create an empty route.
-        return _errorRoute();
+        return MaterialPageRoute(
+          builder: (_) =>
+              SettingsView(controller: SettingsController(SettingsService())),
+        );
 
       default:
-        // If there is no such named route, return an error page
         return MaterialPageRoute(
-          builder: (_) => const LoginPage(),
+          builder: (_) => Scaffold(
+            body: Center(
+              child: Text('No route defined for ${settings.name}'),
+            ),
+          ),
         );
     }
-  }
-
-  static Route<dynamic> _errorRoute() {
-    return MaterialPageRoute(builder: (_) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Error'),
-        ),
-        body: const Center(
-          child: Text('Route not found!'),
-        ),
-      );
-    });
   }
 }

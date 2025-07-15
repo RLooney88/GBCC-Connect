@@ -174,6 +174,12 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Update the current user data
+  void updateCurrentUser(User user) {
+    _currentUser = user;
+    notifyListeners();
+  }
+
   String getAuthErrorMessage(firebase_auth.FirebaseAuthException e) {
     return _authService.getAuthErrorMessage(e);
   }

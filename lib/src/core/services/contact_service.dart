@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/contact.dart';
 import '../models/user.dart';
 import 'firestore_service.dart';
@@ -85,16 +86,21 @@ class ContactService {
   /// Get contacts by owner ID
   Future<List<Contact>> getContactsByOwner(String ownerId) async {
     try {
+      debugPrint('getContactsByOwner: Fetching contacts for owner $ownerId');
       final querySnapshot = await _firestoreService.getDocuments(
         collection: _collection,
         filters: [QueryFilter('ownerId', ownerId)],
         orders: [QueryOrder('name')],
       );
 
+      debugPrint(
+          'getContactsByOwner: Found ${querySnapshot.docs.length} documents');
       final contacts = <Contact>[];
 
       for (final doc in querySnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
+        debugPrint(
+            'getContactsByOwner: Processing document ${doc.id} with data: $data');
 
         // Fetch the owner user data
         User? owner;
@@ -109,8 +115,10 @@ class ContactService {
         }));
       }
 
+      debugPrint('getContactsByOwner: Returning ${contacts.length} contacts');
       return contacts;
     } catch (e) {
+      debugPrint('getContactsByOwner: Error fetching contacts: $e');
       throw Exception('Failed to get contacts by owner: $e');
     }
   }
@@ -240,15 +248,19 @@ class ContactService {
   /// Stream contacts by owner with real-time updates
   Stream<List<Contact>> streamContactsByOwner(String ownerId) {
     try {
+      debugPrint('streamContactsByOwner: Creating stream for owner $ownerId');
       return _firestoreService.streamDocuments(
         collection: _collection,
         filters: [QueryFilter('ownerId', ownerId)],
         orders: [QueryOrder('name')],
       ).asyncMap((querySnapshot) async {
+        debugPrint(
+            'streamContactsByOwner: Received ${querySnapshot.docs.length} documents');
         final contacts = <Contact>[];
 
         for (final doc in querySnapshot.docs) {
           final data = doc.data() as Map<String, dynamic>;
+          debugPrint('streamContactsByOwner: Processing document ${doc.id}');
 
           // Fetch the owner user data
           User? owner;
@@ -263,9 +275,12 @@ class ContactService {
           }));
         }
 
+        debugPrint(
+            'streamContactsByOwner: Returning ${contacts.length} contacts');
         return contacts;
       });
     } catch (e) {
+      debugPrint('streamContactsByOwner: Error creating stream: $e');
       throw Exception('Failed to stream contacts: $e');
     }
   }

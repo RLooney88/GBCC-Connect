@@ -67,6 +67,151 @@ class _DashboardPageState extends State<DashboardPage> {
                 // Welcome Section
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
+                    final user = authProvider.currentUser;
+
+                    if (authProvider.isLoading) {
+                      return Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 30,
+                              backgroundColor: Theme.of(context)
+                                  .primaryColor
+                                  .withOpacity(0.3),
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    height: 14,
+                                    width: 100,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(7),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    height: 20,
+                                    width: 150,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (user == null) {
+                      return Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 30,
+                              backgroundColor: Colors.grey[400],
+                              child: const Icon(
+                                Icons.person_off,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Not signed in',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Please sign in to continue',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF2d3748),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    // Get initials safely
+                    String getInitials() {
+                      if (user.name.isNotEmpty) {
+                        return user.name.substring(0, 1).toUpperCase();
+                      } else if (user.displayName?.isNotEmpty == true) {
+                        return user.displayName!.substring(0, 1).toUpperCase();
+                      } else if (user.email.isNotEmpty) {
+                        return user.email.substring(0, 1).toUpperCase();
+                      }
+                      return 'U';
+                    }
+
+                    // Get display name
+                    String getDisplayName() {
+                      return user.name.isNotEmpty
+                          ? user.name
+                          : user.displayName ?? user.email.split('@')[0];
+                    }
+
+                    // Get subtitle
+                    String getSubtitle() {
+                      if (user.company?.isNotEmpty == true &&
+                          user.title?.isNotEmpty == true) {
+                        return '${user.title} at ${user.company}';
+                      } else if (user.company?.isNotEmpty == true) {
+                        return user.company!;
+                      } else if (user.title?.isNotEmpty == true) {
+                        return user.title!;
+                      }
+                      return user.email;
+                    }
+
                     return Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -80,47 +225,120 @@ class _DashboardPageState extends State<DashboardPage> {
                           ),
                         ],
                       ),
-                      child: Row(
+                      child: Column(
                         children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor: Theme.of(context).primaryColor,
-                            child: Text(
-                              authProvider.currentUser?.name
-                                      .substring(0, 1)
-                                      .toUpperCase() ??
-                                  'U',
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                          Row(
+                            children: [
+                              Stack(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 30,
+                                    backgroundColor:
+                                        Theme.of(context).primaryColor,
+                                    child: Text(
+                                      getInitials(),
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  if (user.chamberMember)
+                                    Positioned(
+                                      right: 0,
+                                      bottom: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.amber,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.star,
+                                          color: Colors.white,
+                                          size: 12,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Welcome back,',
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Welcome back,',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      getDisplayName(),
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF2d3748),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      getSubtitle(),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: user.status == 'active'
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  user.status.toUpperCase(),
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: user.status == 'active'
+                                        ? Colors.green[700]
+                                        : Colors.orange[700],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (user.phone?.isNotEmpty == true ||
+                              user.companyPhone?.isNotEmpty == true)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.phone,
+                                    size: 16,
                                     color: Colors.grey[600],
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  authProvider.currentUser?.name ?? 'N/A',
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF2d3748),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    user.phone ?? user.companyPhone ?? '',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     );

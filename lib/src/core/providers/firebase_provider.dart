@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 import '../models/user.dart';
 import '../models/contact.dart';
 import '../models/message.dart';
@@ -39,13 +40,22 @@ class FirebaseProvider extends ChangeNotifier {
     }
 
     try {
+      debugPrint('FirebaseProvider: Starting initialization...');
       _setLoading(true);
       _clearError();
 
-      await _serviceManager.initialize();
+      // Add timeout to prevent hanging
+      final timeout = const Duration(seconds: 30);
+      await _serviceManager.initialize().timeout(timeout, onTimeout: () {
+        throw TimeoutException(
+            'ServiceManager initialization timed out', timeout);
+      });
+      debugPrint('FirebaseProvider: ServiceManager initialized successfully');
 
       // Listen to auth state changes
+      debugPrint('FirebaseProvider: Setting up auth state listener...');
       _serviceManager.auth.authStateChanges.listen((user) {
+        debugPrint('FirebaseProvider: Auth state changed - user: ${user?.uid}');
         if (user != null) {
           _loadCurrentUser(user.uid);
         } else {
@@ -55,28 +65,39 @@ class FirebaseProvider extends ChangeNotifier {
       });
 
       _isInitialized = true;
+      debugPrint('FirebaseProvider: Initialization completed successfully');
     } catch (e) {
+      debugPrint('FirebaseProvider: Initialization failed with error: $e');
       _setError('Failed to initialize Firebase: $e');
     } finally {
       _setLoading(false);
+      debugPrint('FirebaseProvider: Loading state set to false');
     }
   }
 
   /// Load current user data
   Future<void> _loadCurrentUser(String userId) async {
     try {
+      debugPrint('FirebaseProvider: Loading current user with ID: $userId');
       final user = await _serviceManager.users.getUserById(userId);
       if (user != null) {
+        debugPrint('FirebaseProvider: User loaded successfully: ${user.name}');
         _currentUser = user;
         notifyListeners();
 
         // Load user's contacts and conversations
+        debugPrint(
+            'FirebaseProvider: Loading user contacts and conversations...');
         await Future.wait([
           loadContacts(),
           loadConversations(),
         ]);
+        debugPrint('FirebaseProvider: User data loading completed');
+      } else {
+        debugPrint('FirebaseProvider: User not found in database');
       }
     } catch (e) {
+      debugPrint('FirebaseProvider: Failed to load user: $e');
       _setError('Failed to load user: $e');
     }
   }
@@ -88,7 +109,7 @@ class FirebaseProvider extends ChangeNotifier {
       _clearError();
 
       final userId = await _serviceManager.users.createUser(user);
-      print('User created with ID: $userId');
+      debugPrint('User created with ID: $userId');
     } catch (e) {
       _setError('Failed to create user: $e');
     } finally {
@@ -117,19 +138,28 @@ class FirebaseProvider extends ChangeNotifier {
   /// Load user's contacts
   Future<void> loadContacts() async {
     try {
-      if (_currentUser == null) return;
+      if (_currentUser == null) {
+        debugPrint('loadContacts: No current user, returning early');
+        return;
+      }
 
+      debugPrint('loadContacts: Loading contacts for user ${_currentUser!.id}');
       _setLoading(true);
       _clearError();
 
       final contacts =
           await _serviceManager.contacts.getContactsByOwner(_currentUser!.id);
+      debugPrint(
+          'loadContacts: Retrieved ${contacts.length} contacts from service');
       _contacts = contacts;
       notifyListeners();
+      debugPrint('loadContacts: Updated contacts list and notified listeners');
     } catch (e) {
+      debugPrint('loadContacts: Error loading contacts: $e');
       _setError('Failed to load contacts: $e');
     } finally {
       _setLoading(false);
+      debugPrint('loadContacts: Loading state set to false');
     }
   }
 
@@ -140,7 +170,7 @@ class FirebaseProvider extends ChangeNotifier {
       _clearError();
 
       final contactId = await _serviceManager.contacts.createContact(contact);
-      print('Contact created with ID: $contactId');
+      debugPrint('Contact created with ID: $contactId');
 
       // Reload contacts
       await loadContacts();
@@ -247,7 +277,7 @@ class FirebaseProvider extends ChangeNotifier {
         messageType: messageType,
       );
 
-      print('Message sent with ID: $messageId');
+      debugPrint('Message sent with ID: $messageId');
 
       // Reload conversations to update last message
       await loadConversations();
@@ -490,7 +520,11 @@ class FirebaseProvider extends ChangeNotifier {
 
   /// Stream contacts in real-time
   Stream<List<Contact>> streamContacts() {
-    if (_currentUser == null) return Stream.value([]);
+    if (_currentUser == null) {
+      debugPrint('streamContacts: No current user, returning empty stream');
+      return Stream.value([]);
+    }
+    debugPrint('streamContacts: Creating stream for user ${_currentUser!.id}');
     return _serviceManager.contacts.streamContactsByOwner(_currentUser!.id);
   }
 
