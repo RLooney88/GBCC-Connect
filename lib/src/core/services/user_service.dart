@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart';
 import 'firestore_service.dart';
+import 'package:flutter/foundation.dart'; // Added for debugPrint
 
 class UserService {
   static UserService? _instance;
@@ -40,19 +41,30 @@ class UserService {
   /// Get user by ID
   Future<User?> getUserById(String userId) async {
     try {
+      debugPrint('UserService: Getting user by ID: $userId');
       final doc = await _firestoreService.getDocument(
         collection: _collection,
         documentId: userId,
       );
 
       if (doc != null && doc.exists) {
-        return User.fromJson({
+        debugPrint('UserService: User document found, parsing data...');
+        final userData = doc.data() as Map<String, dynamic>;
+        debugPrint('UserService: User data: $userData');
+
+        final user = User.fromJson({
           'id': doc.id,
-          ...doc.data() as Map<String, dynamic>,
+          ...userData,
         });
+
+        debugPrint('UserService: User parsed successfully: ${user.name}');
+        return user;
+      } else {
+        debugPrint('UserService: User document not found or does not exist');
+        return null;
       }
-      return null;
     } catch (e) {
+      debugPrint('UserService: Error getting user by ID: $e');
       throw Exception('Failed to get user: $e');
     }
   }
@@ -82,12 +94,18 @@ class UserService {
   /// Update user
   Future<void> updateUser(String userId, User user) async {
     try {
+      debugPrint('UserService: Updating user with ID: $userId');
+      debugPrint('UserService: Update data: ${user.toJson()}');
+
       await _firestoreService.updateDocument(
         collection: _collection,
         documentId: userId,
         data: user.toJson(),
       );
+
+      debugPrint('UserService: User updated successfully in Firestore');
     } catch (e) {
+      debugPrint('UserService: Error updating user: $e');
       throw Exception('Failed to update user: $e');
     }
   }

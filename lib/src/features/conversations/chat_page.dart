@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../core/providers/firebase_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/models/message.dart';
-import '../../core/models/user.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});

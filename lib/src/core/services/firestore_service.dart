@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_config_service.dart';
+import 'package:flutter/foundation.dart'; // Added for debugPrint
 
 class FirestoreService {
   static FirestoreService? _instance;
@@ -77,9 +78,19 @@ class FirestoreService {
     required String documentId,
   }) async {
     try {
+      debugPrint(
+          'FirestoreService: Getting document from collection: $collection, documentId: $documentId');
       final doc = await _firestore.collection(collection).doc(documentId).get();
-      return doc.exists ? doc : null;
+
+      if (doc.exists) {
+        debugPrint('FirestoreService: Document found and exists');
+        return doc;
+      } else {
+        debugPrint('FirestoreService: Document does not exist');
+        return null;
+      }
     } catch (e, stackTrace) {
+      debugPrint('FirestoreService: Error getting document: $e');
       await _configService.logError(e, stackTrace,
           reason: 'Document retrieval failed');
       return null;
@@ -93,10 +104,17 @@ class FirestoreService {
     required Map<String, dynamic> data,
   }) async {
     try {
+      debugPrint(
+          'FirestoreService: Updating document in collection: $collection, documentId: $documentId');
+      debugPrint('FirestoreService: Update data: $data');
+
       await _firestore.collection(collection).doc(documentId).update({
         ...data,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      debugPrint(
+          'FirestoreService: Document updated successfully in Firestore');
 
       // Log analytics event
       await _configService.logEvent(
@@ -107,6 +125,7 @@ class FirestoreService {
         },
       );
     } catch (e, stackTrace) {
+      debugPrint('FirestoreService: Error updating document: $e');
       await _configService.logError(e, stackTrace,
           reason: 'Document update failed');
       rethrow;

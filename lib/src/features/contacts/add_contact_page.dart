@@ -78,211 +78,281 @@ class _AddContactPageState extends State<AddContactPage> {
           ),
         ],
       ),
-      body: Consumer<FirebaseProvider>(
-        builder: (context, firebaseProvider, child) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Form(
-              key: _formKey,
+      body: Consumer2<AuthProvider, FirebaseProvider>(
+        builder: (context, authProvider, firebaseProvider, child) {
+          // Check if user is authenticated
+          if (!authProvider.isAuthenticated) {
+            return _buildUnauthenticatedView(context);
+          }
+
+          // Show loading state while checking auth status
+          if (authProvider.isLoading) {
+            return _buildLoadingView();
+          }
+
+          final user = authProvider.currentUser;
+
+          // Handle case where user data is not available
+          if (user == null) {
+            return _buildErrorView(context, 'Unable to load user data');
+          }
+
+          return _buildAddContactForm(context, authProvider, firebaseProvider);
+        },
+      ),
+    );
+  }
+
+  Widget _buildUnauthenticatedView(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text(
+            'You must be logged in to add a contact.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 18),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: 200,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/login');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Login'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingView() {
+    return const Center(
+      child: CircularProgressIndicator(),
+    );
+  }
+
+  Widget _buildErrorView(BuildContext context, String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 18, color: Colors.red),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddContactForm(BuildContext context, AuthProvider authProvider,
+      FirebaseProvider firebaseProvider) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Profile Picture Section
+            Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Profile Picture Section
-                  Center(
-                    child: Column(
-                      children: [
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: Theme.of(context).primaryColor,
-                          child: const Icon(
-                            Icons.person_add,
-                            size: 50,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextButton(
-                          onPressed: () {
-                            // TODO: Implement image picker
-                          },
-                          child: const Text('Add Photo'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Contact Information
-                  const Text(
-                    'Contact Information',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Theme.of(context).primaryColor,
+                    child: const Icon(
+                      Icons.person_add,
+                      size: 50,
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // Name Field
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Full Name *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter a name';
-                      }
-                      return null;
+                  TextButton(
+                    onPressed: () {
+                      // TODO: Implement image picker
                     },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Email Field
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value != null && value.trim().isNotEmpty) {
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                            .hasMatch(value.trim())) {
-                          return 'Please enter a valid email';
-                        }
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Phone Field
-                  TextFormField(
-                    controller: _phoneController,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone Number',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.phone),
-                    ),
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Professional Information
-                  const Text(
-                    'Professional Information',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Position Field
-                  TextFormField(
-                    controller: _positionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Position',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.work),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Company Field
-                  TextFormField(
-                    controller: _companyController,
-                    decoration: const InputDecoration(
-                      labelText: 'Company',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.business),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Website Field
-                  TextFormField(
-                    controller: _websiteController,
-                    decoration: const InputDecoration(
-                      labelText: 'Website',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.language),
-                    ),
-                    keyboardType: TextInputType.url,
-                    validator: (value) {
-                      if (value != null && value.trim().isNotEmpty) {
-                        // Basic URL validation
-                        final urlPattern = RegExp(
-                          r'^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$',
-                          caseSensitive: false,
-                        );
-                        if (!urlPattern.hasMatch(value.trim())) {
-                          return 'Please enter a valid website URL';
-                        }
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Notes Section
-                  const Text(
-                    'Additional Information',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Notes Field
-                  TextFormField(
-                    controller: _notesController,
-                    decoration: const InputDecoration(
-                      labelText: 'Notes',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.note),
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Save Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _saveContact,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : const Text(
-                              'Save Contact',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                    ),
+                    child: const Text('Add Photo'),
                   ),
                 ],
               ),
             ),
-          );
-        },
+            const SizedBox(height: 24),
+
+            // Contact Information
+            const Text(
+              'Contact Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Name Field
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Full Name *',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter a name';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Email Field
+            TextFormField(
+              controller: _emailController,
+              decoration: const InputDecoration(
+                labelText: 'Email *',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.email),
+              ),
+              keyboardType: TextInputType.emailAddress,
+              validator: (value) {
+                if (value != null && value.trim().isNotEmpty) {
+                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                      .hasMatch(value.trim())) {
+                    return 'Please enter a valid email';
+                  }
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Phone Field
+            TextFormField(
+              controller: _phoneController,
+              decoration: const InputDecoration(
+                labelText: 'Phone Number',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.phone),
+              ),
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 24),
+
+            // Professional Information
+            const Text(
+              'Professional Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Position Field
+            TextFormField(
+              controller: _positionController,
+              decoration: const InputDecoration(
+                labelText: 'Position',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.work),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Company Field
+            TextFormField(
+              controller: _companyController,
+              decoration: const InputDecoration(
+                labelText: 'Company',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.business),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Website Field
+            TextFormField(
+              controller: _websiteController,
+              decoration: const InputDecoration(
+                labelText: 'Website',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.language),
+              ),
+              keyboardType: TextInputType.url,
+              validator: (value) {
+                if (value != null && value.trim().isNotEmpty) {
+                  // Basic URL validation
+                  final urlPattern = RegExp(
+                    r'^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$',
+                    caseSensitive: false,
+                  );
+                  if (!urlPattern.hasMatch(value.trim())) {
+                    return 'Please enter a valid website URL';
+                  }
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Notes Section
+            const Text(
+              'Additional Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Notes Field
+            TextFormField(
+              controller: _notesController,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.note),
+              ),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 32),
+
+            // Save Button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _saveContact,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Colors.white,
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Save Contact',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

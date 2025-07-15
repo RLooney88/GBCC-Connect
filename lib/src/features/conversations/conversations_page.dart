@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/routes/app_routes.dart';
 
 class ConversationsPage extends StatelessWidget {
@@ -19,18 +21,132 @@ class ConversationsPage extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _buildConversationsList(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Navigate to new conversation page
+      body: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          // Check if user is authenticated
+          if (!authProvider.isAuthenticated) {
+            return _buildUnauthenticatedView(context);
+          }
+
+          // Show loading state while checking auth status
+          if (authProvider.isLoading) {
+            return _buildLoadingView();
+          }
+
+          final user = authProvider.currentUser;
+
+          // Handle case where user data is not available
+          if (user == null) {
+            return _buildErrorView(context, 'Unable to load user data');
+          }
+
+          return _buildConversationsList(context, user);
         },
-        backgroundColor: Theme.of(context).primaryColor,
-        child: const Icon(Icons.chat, color: Colors.white),
+      ),
+      floatingActionButton: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          if (!authProvider.isAuthenticated) {
+            return const SizedBox.shrink();
+          }
+
+          return FloatingActionButton(
+            onPressed: () {
+              // TODO: Navigate to new conversation page
+            },
+            backgroundColor: Theme.of(context).primaryColor,
+            child: const Icon(Icons.chat, color: Colors.white),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildConversationsList() {
+  Widget _buildUnauthenticatedView(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.lock_outline,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Authentication Required',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.grey[600],
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Please log in to view your conversations',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[500],
+                ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.pushReplacementNamed(context, AppRoutes.login),
+            child: const Text('Go to Login'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingView() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Loading conversations...'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorView(BuildContext context, String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: Colors.red[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Error',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.red[600],
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.red[500],
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.pushReplacementNamed(context, AppRoutes.login),
+            child: const Text('Go to Login'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConversationsList(BuildContext context, dynamic user) {
+    // TODO: Replace with real data from Firebase
     final conversations = [
       {
         'name': 'John Doe',
@@ -54,6 +170,35 @@ class ConversationsPage extends StatelessWidget {
         'avatar': 'M'
       },
     ];
+
+    if (conversations.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No Conversations Yet',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Start a conversation with your contacts',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey[500],
+                  ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return ListView.builder(
       itemCount: conversations.length,
@@ -112,6 +257,8 @@ class ConversationsPage extends StatelessWidget {
           Navigator.pushNamed(context, AppRoutes.chat, arguments: {
             'contactName': conversation['name'],
             'contactAvatar': conversation['avatar'],
+            'receiverId':
+                'dummy-id-${conversation['name'].toLowerCase().replaceAll(' ', '-')}',
           });
         },
       ),

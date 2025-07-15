@@ -52,18 +52,6 @@ class FirebaseProvider extends ChangeNotifier {
       });
       debugPrint('FirebaseProvider: ServiceManager initialized successfully');
 
-      // Listen to auth state changes
-      debugPrint('FirebaseProvider: Setting up auth state listener...');
-      _serviceManager.auth.authStateChanges.listen((user) {
-        debugPrint('FirebaseProvider: Auth state changed - user: ${user?.uid}');
-        if (user != null) {
-          _loadCurrentUser(user.uid);
-        } else {
-          _currentUser = null;
-          notifyListeners();
-        }
-      });
-
       _isInitialized = true;
       debugPrint('FirebaseProvider: Initialization completed successfully');
     } catch (e) {
@@ -75,30 +63,127 @@ class FirebaseProvider extends ChangeNotifier {
     }
   }
 
-  /// Load current user data
-  Future<void> _loadCurrentUser(String userId) async {
+  /// Load current user data when authentication state changes
+  /// This method should be called by AuthProvider when user logs in
+  Future<void> onUserAuthenticated(String userId) async {
     try {
-      debugPrint('FirebaseProvider: Loading current user with ID: $userId');
-      final user = await _serviceManager.users.getUserById(userId);
-      if (user != null) {
-        debugPrint('FirebaseProvider: User loaded successfully: ${user.name}');
-        _currentUser = user;
-        notifyListeners();
+      debugPrint(
+          'FirebaseProvider: User authenticated, loading additional data for: $userId');
 
-        // Load user's contacts and conversations
-        debugPrint(
-            'FirebaseProvider: Loading user contacts and conversations...');
+      // Load user's contacts and conversations
+      debugPrint(
+          'FirebaseProvider: Loading user contacts and conversations...');
+      await Future.wait([
+        loadContacts(),
+        loadConversations(),
+      ]);
+      debugPrint('FirebaseProvider: Additional user data loading completed');
+    } catch (e) {
+      debugPrint(
+          'FirebaseProvider: Error loading additional user data after authentication: $e');
+      _setError('Failed to load additional user data: $e');
+    }
+  }
+
+  /// Clear user data when user logs out
+  /// This method should be called by AuthProvider when user logs out
+  void onUserLoggedOut() {
+    debugPrint('FirebaseProvider: User logged out, clearing data');
+    _contacts.clear();
+    _messages.clear();
+    _conversations.clear();
+    _error = null;
+    notifyListeners();
+  }
+
+  /// Load current user data (public method)
+  Future<void> loadCurrentUser() async {
+    try {
+      final currentAuthUser = _serviceManager.auth.currentUser;
+      if (currentAuthUser != null) {
+        // Get user data from AuthProvider instead of loading directly
+        final user =
+            await _serviceManager.users.getUserById(currentAuthUser.uid);
+        if (user != null) {
+          _currentUser = user;
+          notifyListeners();
+
+          // Load additional data
+          await Future.wait([
+            loadContacts(),
+            loadConversations(),
+          ]);
+        }
+      } else {
+        debugPrint('FirebaseProvider: No authenticated user found');
+      }
+    } catch (e) {
+      debugPrint('FirebaseProvider: Error loading current user: $e');
+      _setError('Failed to load current user: $e');
+    }
+  }
+
+  /// Force refresh current user data from Firebase
+  Future<void> refreshCurrentUser() async {
+    try {
+      final currentAuthUser = _serviceManager.auth.currentUser;
+      if (currentAuthUser != null) {
+        debugPrint('FirebaseProvider: Force refreshing current user data...');
+
+        // Refresh user data
+        final user =
+            await _serviceManager.users.getUserById(currentAuthUser.uid);
+        if (user != null) {
+          _currentUser = user;
+          notifyListeners();
+        }
+
+        // Refresh additional data
         await Future.wait([
           loadContacts(),
           loadConversations(),
         ]);
-        debugPrint('FirebaseProvider: User data loading completed');
+
+        debugPrint(
+            'FirebaseProvider: Current user data refreshed successfully');
       } else {
-        debugPrint('FirebaseProvider: User not found in database');
+        debugPrint('FirebaseProvider: No authenticated user found for refresh');
       }
     } catch (e) {
-      debugPrint('FirebaseProvider: Failed to load user: $e');
-      _setError('Failed to load user: $e');
+      debugPrint('FirebaseProvider: Error refreshing current user: $e');
+      _setError('Failed to refresh current user: $e');
+      rethrow;
+    }
+  }
+
+  /// Ensure current user exists in Firebase
+  Future<void> ensureCurrentUserExists() async {
+    try {
+      final currentAuthUser = _serviceManager.auth.currentUser;
+      if (currentAuthUser == null) {
+        debugPrint('FirebaseProvider: No authenticated user found');
+        return;
+      }
+
+      // Check if user exists in Firebase
+      final existingUser =
+          await _serviceManager.users.getUserById(currentAuthUser.uid);
+
+      if (existingUser == null) {
+        debugPrint(
+            'FirebaseProvider: User not found in Firebase, this should be handled by AuthProvider');
+        // User creation is now handled by AuthProvider
+        return;
+      } else {
+        debugPrint('FirebaseProvider: User already exists in Firebase');
+        // Update local user data
+        _currentUser = existingUser;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('FirebaseProvider: Error ensuring user exists: $e');
+      _setError('Failed to ensure user exists: $e');
+      rethrow;
     }
   }
 
@@ -117,21 +202,109 @@ class FirebaseProvider extends ChangeNotifier {
     }
   }
 
+  /// Check if current user exists in Firebase
+  Future<bool> doesCurrentUserExist() async {
+    try {
+      final currentAuthUser = _serviceManager.auth.currentUser;
+      if (currentAuthUser == null) {
+        return false;
+      }
+
+      final user = await _serviceManager.users.getUserById(currentAuthUser.uid);
+      return user != null;
+    } catch (e) {
+      debugPrint('FirebaseProvider: Error checking if user exists: $e');
+      return false;
+    }
+  }
+
   /// Update current user
   Future<void> updateCurrentUser(User user) async {
     try {
+      debugPrint(
+          'FirebaseProvider: Starting user update for user ID: ${user.id}');
       _setLoading(true);
       _clearError();
 
-      if (_currentUser != null) {
-        await _serviceManager.users.updateUser(_currentUser!.id, user);
-        _currentUser = user;
-        notifyListeners();
+      // Get the current authenticated user
+      final currentAuthUser = _serviceManager.auth.currentUser;
+      if (currentAuthUser == null) {
+        throw Exception('No authenticated user found');
       }
+
+      // Validate user ID matches the authenticated user
+      if (user.id != currentAuthUser.uid) {
+        throw Exception(
+            'User ID mismatch: authenticated=${currentAuthUser.uid}, update=${user.id}');
+      }
+
+      // Validate required fields
+      if (user.name.trim().isEmpty) {
+        throw Exception('Name cannot be empty');
+      }
+
+      if (user.email.trim().isEmpty) {
+        throw Exception('Email cannot be empty');
+      }
+
+      // Check if user exists in Firebase before updating
+      final userExists = await doesCurrentUserExist();
+      if (!userExists) {
+        debugPrint(
+            'FirebaseProvider: User does not exist in Firebase, creating...');
+        await ensureCurrentUserExists();
+      }
+
+      // Get the current user from Firebase to ensure we have the latest data
+      final existingUser = await _serviceManager.users.getUserById(user.id);
+      if (existingUser == null) {
+        throw Exception('User not found in Firebase database');
+      }
+
+      // Create updated user with current timestamp and preserve existing fields
+      final updatedUser = existingUser.copyWith(
+        name: user.name,
+        email: user.email,
+        displayName: user.displayName,
+        phone: user.phone,
+        address: user.address,
+        title: user.title,
+        website: user.website,
+        notes: user.notes,
+        instagram: user.instagram,
+        facebook: user.facebook,
+        youtube: user.youtube,
+        linkedin: user.linkedin,
+        pinterest: user.pinterest,
+        chamberMember: user.chamberMember,
+        isOwner: user.isOwner,
+        company: user.company,
+        companyPhone: user.companyPhone,
+        companyEmail: user.companyEmail,
+        status: user.status,
+        updatedAt: DateTime.now(), // Update timestamp
+      );
+
+      debugPrint('FirebaseProvider: Calling service manager to update user');
+
+      // Update user in Firebase
+      await _serviceManager.users.updateUser(user.id, updatedUser);
+
+      debugPrint('FirebaseProvider: User updated successfully in Firebase');
+
+      // Update local state
+      _currentUser = updatedUser;
+      notifyListeners();
+
+      debugPrint(
+          'FirebaseProvider: Local state updated and listeners notified');
     } catch (e) {
+      debugPrint('FirebaseProvider: Error updating user: $e');
       _setError('Failed to update user: $e');
+      rethrow; // Re-throw to allow calling code to handle the error
     } finally {
       _setLoading(false);
+      debugPrint('FirebaseProvider: Loading state set to false');
     }
   }
 
@@ -567,6 +740,22 @@ class FirebaseProvider extends ChangeNotifier {
     _error = null;
     _isInitialized = false;
     notifyListeners();
+  }
+
+  /// Debug method to get current state information
+  Map<String, dynamic> getDebugInfo() {
+    return {
+      'isInitialized': _isInitialized,
+      'isLoading': _isLoading,
+      'hasCurrentUser': _currentUser != null,
+      'currentUserId': _currentUser?.id,
+      'currentUserName': _currentUser?.name,
+      'authUserExists': _serviceManager.auth.currentUser != null,
+      'authUserId': _serviceManager.auth.currentUser?.uid,
+      'error': _error,
+      'contactsCount': _contacts.length,
+      'conversationsCount': _conversations.length,
+    };
   }
 
   /// Dispose provider

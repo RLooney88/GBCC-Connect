@@ -38,7 +38,21 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => FirebaseProvider()),
       ],
-      child: MyApp(settingsController: settingsController),
+      child: Consumer2<AuthProvider, FirebaseProvider>(
+        builder: (context, authProvider, firebaseProvider, child) {
+          // Set up coordination between providers
+          authProvider.setFirebaseProviderCallbacks(
+            onUserAuthenticated: (userId) {
+              firebaseProvider.onUserAuthenticated(userId);
+            },
+            onUserLoggedOut: () {
+              firebaseProvider.onUserLoggedOut();
+            },
+          );
+
+          return MyApp(settingsController: settingsController);
+        },
+      ),
     ),
   );
 }

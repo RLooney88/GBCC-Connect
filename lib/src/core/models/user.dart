@@ -69,11 +69,43 @@ class User {
       companyPhone: json['companyPhone'],
       companyEmail: json['companyEmail'],
       status: json['status'] ?? 'active',
-      createdAt:
-          DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt:
-          DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
     );
+  }
+
+  // Helper method to parse DateTime safely
+  static DateTime _parseDateTime(dynamic dateTimeValue) {
+    if (dateTimeValue == null) {
+      return DateTime.now();
+    }
+
+    if (dateTimeValue is DateTime) {
+      return dateTimeValue;
+    }
+
+    if (dateTimeValue is String) {
+      try {
+        return DateTime.parse(dateTimeValue);
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+
+    // Handle Firestore Timestamp objects
+    if (dateTimeValue.toString().contains('Timestamp')) {
+      try {
+        // This is a Firestore Timestamp, convert to DateTime
+        final timestamp = dateTimeValue as dynamic;
+        if (timestamp.toDate != null) {
+          return timestamp.toDate();
+        }
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+
+    return DateTime.now();
   }
 
   Map<String, dynamic> toJson() {

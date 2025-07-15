@@ -1,5 +1,4 @@
 import '../models/message.dart';
-import '../models/conversation.dart';
 import 'firestore_service.dart';
 import 'conversation_service.dart';
 

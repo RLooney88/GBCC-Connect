@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/firebase_provider.dart';
@@ -40,36 +41,192 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Initialize Firebase provider
-      context.read<FirebaseProvider>().initialize();
-      _loadUserData();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initializeAndLoadUserData();
     });
   }
 
-  void _loadUserData() {
-    final user = context.read<AuthProvider>().currentUser;
-    if (user != null) {
-      _originalUser = user;
-      setState(() {
-        _nameController.text = user.name;
-        _emailController.text = user.email;
-        _phoneController.text = user.phone ?? '';
-        _displayNameController.text = user.displayName ?? '';
-        _titleController.text = user.title ?? '';
-        _companyController.text = user.company ?? '';
-        _companyPhoneController.text = user.companyPhone ?? '';
-        _companyEmailController.text = user.companyEmail ?? '';
-        _addressController.text = user.address ?? '';
-        _websiteController.text = user.website ?? '';
-        _notesController.text = user.notes ?? '';
-        _instagramController.text = user.instagram ?? '';
-        _facebookController.text = user.facebook ?? '';
-        _youtubeController.text = user.youtube ?? '';
-        _linkedinController.text = user.linkedin ?? '';
-        _pinterestController.text = user.pinterest ?? '';
-        _isChamberMember = user.chamberMember;
-      });
+  Future<void> _initializeAndLoadUserData() async {
+    try {
+      final firebaseProvider = context.read<FirebaseProvider>();
+      final authProvider = context.read<AuthProvider>();
+
+      // Check if user is authenticated first
+      if (!authProvider.isAuthenticated) {
+        debugPrint('EditProfilePage: User not authenticated');
+        return;
+      }
+
+      // Initialize Firebase provider if needed
+      if (!firebaseProvider.isInitialized) {
+        debugPrint('EditProfilePage: Initializing FirebaseProvider...');
+        await firebaseProvider.initialize();
+
+        // Wait a bit for auth state listener to process
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
+      // Load user data
+      await _loadUserData();
+    } catch (e) {
+      debugPrint('EditProfilePage: Error during initialization: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load profile data: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    final firebaseProvider = context.read<FirebaseProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    User? user;
+
+    try {
+      // First, ensure current user exists in Firebase
+      debugPrint(
+          'EditProfilePage: Ensuring current user exists in Firebase...');
+      await firebaseProvider.ensureCurrentUserExists();
+
+      // Try to get user from FirebaseProvider first (more complete data)
+      user = firebaseProvider.currentUser;
+
+      if (user != null) {
+        debugPrint('EditProfilePage: Using FirebaseProvider user data');
+      } else {
+        // Fallback to AuthProvider if FirebaseProvider doesn't have user data
+        user = authProvider.currentUser;
+        debugPrint('EditProfilePage: Using AuthProvider user data as fallback');
+
+        // If we have auth user but no Firebase user, try to load it
+        if (user != null && firebaseProvider.currentUser == null) {
+          debugPrint(
+              'EditProfilePage: Attempting to load user from Firebase...');
+          try {
+            await firebaseProvider.loadCurrentUser();
+            user = firebaseProvider.currentUser ?? user;
+          } catch (e) {
+            debugPrint(
+                'EditProfilePage: Failed to load user from Firebase: $e');
+            // Continue with auth user data
+          }
+        }
+      }
+
+      if (user != null) {
+        _originalUser = user;
+        _populateFormFields(user);
+        debugPrint('EditProfilePage: User data loaded successfully');
+      } else {
+        debugPrint('EditProfilePage: No user data available from any source');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content:
+                  Text('Unable to load user profile data. Please try again.'),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        // Try to reload the page or navigate back
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      debugPrint('EditProfilePage: Error loading user data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading profile: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        // Navigate back on error
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  void _populateFormFields(User user) {
+    if (!mounted) return;
+
+    setState(() {
+      _nameController.text = user.name;
+      _emailController.text = user.email;
+      _phoneController.text = user.phone ?? '';
+      _displayNameController.text = user.displayName ?? '';
+      _titleController.text = user.title ?? '';
+      _companyController.text = user.company ?? '';
+      _companyPhoneController.text = user.companyPhone ?? '';
+      _companyEmailController.text = user.companyEmail ?? '';
+      _addressController.text = user.address ?? '';
+      _websiteController.text = user.website ?? '';
+      _notesController.text = user.notes ?? '';
+      _instagramController.text = user.instagram ?? '';
+      _facebookController.text = user.facebook ?? '';
+      _youtubeController.text = user.youtube ?? '';
+      _linkedinController.text = user.linkedin ?? '';
+      _pinterestController.text = user.pinterest ?? '';
+      _isChamberMember = user.chamberMember;
+    });
+  }
+
+  void _showDebugInfo() {
+    final firebaseProvider = context.read<FirebaseProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    final debugInfo = firebaseProvider.getDebugInfo();
+    final authInfo = {
+      'isAuthenticated': authProvider.isAuthenticated,
+      'isLoading': authProvider.isLoading,
+      'hasCurrentUser': authProvider.currentUser != null,
+      'currentUserId': authProvider.currentUser?.id,
+      'currentUserName': authProvider.currentUser?.name,
+    };
+
+    debugPrint('=== FIREBASE PROVIDER DEBUG INFO ===');
+    debugInfo.forEach((key, value) => debugPrint('$key: $value'));
+
+    debugPrint('=== AUTH PROVIDER DEBUG INFO ===');
+    authInfo.forEach((key, value) => debugPrint('$key: $value'));
+
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Debug Information'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Firebase Provider:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                ...debugInfo.entries.map((e) => Text('${e.key}: ${e.value}')),
+                const SizedBox(height: 16),
+                const Text('Auth Provider:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                ...authInfo.entries.map((e) => Text('${e.key}: ${e.value}')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
     }
   }
 
@@ -107,15 +264,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
+          // Debug button (only in debug mode)
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.bug_report),
+              onPressed: _showDebugInfo,
+              tooltip: 'Debug Info',
+            ),
           TextButton(
             onPressed: _isLoading ? null : _saveProfile,
             child: _isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      color: Theme.of(context).primaryColor,
                     ),
                   )
                 : const Text(
@@ -133,6 +298,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
             return _buildUnauthenticatedView(context);
           }
 
+          // Show loading state while providers are initializing
+          if (authProvider.isLoading || firebaseProvider.isLoading) {
+            return _buildLoadingView();
+          }
+
+          // Show loading state if we don't have user data yet
           if (_originalUser == null) {
             return _buildLoadingView();
           }
@@ -179,13 +350,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildLoadingView() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Loading profile data...'),
+          CircularProgressIndicator(
+            color: Theme.of(context).primaryColor,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Loading profile data...',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Please wait while we retrieve your information',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[600],
+                ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -451,66 +635,111 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final firebaseProvider = context.read<FirebaseProvider>();
       final authProvider = context.read<AuthProvider>();
 
+      // Validate that we have original user data
+      if (_originalUser == null) {
+        throw Exception('No user data available for update');
+      }
+
+      // Ensure FirebaseProvider is initialized
+      if (!firebaseProvider.isInitialized) {
+        debugPrint('FirebaseProvider not initialized, initializing now...');
+        await firebaseProvider.initialize();
+      }
+
+      // Ensure current user exists in Firebase
+      debugPrint(
+          'EditProfilePage: Ensuring current user exists before update...');
+      await firebaseProvider.ensureCurrentUserExists();
+
+      // Verify that we still have a current user after ensuring existence
+      final currentUser = firebaseProvider.currentUser;
+      if (currentUser == null) {
+        // Try to load the current user explicitly
+        debugPrint(
+            'EditProfilePage: Current user is null, attempting to load...');
+        await firebaseProvider.loadCurrentUser();
+
+        final retryUser = firebaseProvider.currentUser;
+        if (retryUser == null) {
+          throw Exception(
+              'Unable to retrieve current user data after multiple attempts');
+        }
+      }
+
       // Create the updated user object
       final updatedUser = _originalUser!.copyWith(
         name: _nameController.text.trim(),
-        displayName: _displayNameController.text.trim().isEmpty
-            ? null
-            : _displayNameController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty
-            ? null
-            : _phoneController.text.trim(),
-        title: _titleController.text.trim().isEmpty
-            ? null
-            : _titleController.text.trim(),
-        company: _companyController.text.trim().isEmpty
-            ? null
-            : _companyController.text.trim(),
-        companyPhone: _companyPhoneController.text.trim().isEmpty
-            ? null
-            : _companyPhoneController.text.trim(),
-        companyEmail: _companyEmailController.text.trim().isEmpty
-            ? null
-            : _companyEmailController.text.trim(),
-        address: _addressController.text.trim().isEmpty
-            ? null
-            : _addressController.text.trim(),
-        website: _websiteController.text.trim().isEmpty
-            ? null
-            : _websiteController.text.trim(),
-        notes: _notesController.text.trim().isEmpty
-            ? null
-            : _notesController.text.trim(),
-        instagram: _instagramController.text.trim().isEmpty
-            ? null
-            : _instagramController.text.trim(),
-        facebook: _facebookController.text.trim().isEmpty
-            ? null
-            : _facebookController.text.trim(),
-        youtube: _youtubeController.text.trim().isEmpty
-            ? null
-            : _youtubeController.text.trim(),
-        linkedin: _linkedinController.text.trim().isEmpty
-            ? null
-            : _linkedinController.text.trim(),
-        pinterest: _pinterestController.text.trim().isEmpty
-            ? null
-            : _pinterestController.text.trim(),
+        // Preserve empty strings instead of converting to null
+        displayName: _displayNameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        title: _titleController.text.trim(),
+        company: _companyController.text.trim(),
+        companyPhone: _companyPhoneController.text.trim(),
+        companyEmail: _companyEmailController.text.trim(),
+        address: _addressController.text.trim(),
+        website: _websiteController.text.trim(),
+        notes: _notesController.text.trim(),
+        instagram: _instagramController.text.trim(),
+        facebook: _facebookController.text.trim(),
+        youtube: _youtubeController.text.trim(),
+        linkedin: _linkedinController.text.trim(),
+        pinterest: _pinterestController.text.trim(),
         chamberMember: _isChamberMember,
         updatedAt: DateTime.now(),
       );
 
+      debugPrint('Updating user profile for user ID: ${updatedUser.id}');
+      debugPrint('Updated user data: ${updatedUser.toJson()}');
+
+      // Validate critical fields
+      if (updatedUser.name.isEmpty) {
+        throw Exception('Name cannot be empty');
+      }
+
+      // Validate email format if provided
+      if (updatedUser.email.isNotEmpty && !_isValidEmail(updatedUser.email)) {
+        throw Exception('Invalid email format');
+      }
+
+      // Validate website URL if provided
+      if (updatedUser.website != null &&
+          updatedUser.website!.isNotEmpty &&
+          !_isValidUrl(updatedUser.website!)) {
+        throw Exception('Invalid website URL');
+      }
+
       // Update the user using Firebase
       await firebaseProvider.updateCurrentUser(updatedUser);
 
-      // Update the auth provider's current user
+      // Check if there was an error during the update
+      if (firebaseProvider.error != null) {
+        throw Exception('Firebase update failed: ${firebaseProvider.error}');
+      }
+
+      // Update the auth provider's current user to keep them in sync
       authProvider.updateCurrentUser(updatedUser);
+
+      // Update local state
+      _originalUser = updatedUser;
+
+      debugPrint('Profile updated successfully in Firebase');
+
+      // Automatically refresh profile data to ensure consistency
+      debugPrint('EditProfilePage: Refreshing profile data after update...');
+      await firebaseProvider.loadCurrentUser();
+      final refreshedUser = firebaseProvider.currentUser;
+      if (refreshedUser != null) {
+        _originalUser = refreshedUser;
+        _populateFormFields(refreshedUser);
+        debugPrint('EditProfilePage: Profile data refreshed successfully');
+      }
 
       if (mounted) {
         _showSuccessSnackBar('Profile updated successfully!');
         Navigator.pop(context);
       }
     } catch (e) {
+      debugPrint('Error updating profile: $e');
       if (mounted) {
         _showErrorSnackBar('Failed to update profile: ${e.toString()}');
       }
@@ -541,5 +770,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  // Helper method to validate email format
+  bool _isValidEmail(String email) {
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    return emailRegex.hasMatch(email);
+  }
+
+  // Helper method to validate URL format
+  bool _isValidUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      return uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https');
+    } catch (e) {
+      return false;
+    }
   }
 }

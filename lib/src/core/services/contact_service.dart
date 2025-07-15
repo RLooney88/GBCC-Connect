@@ -87,10 +87,15 @@ class ContactService {
   Future<List<Contact>> getContactsByOwner(String ownerId) async {
     try {
       debugPrint('getContactsByOwner: Fetching contacts for owner $ownerId');
+
+      // Fetch owner data once instead of for each contact
+      final owner = await _userService.getUserById(ownerId);
+
       final querySnapshot = await _firestoreService.getDocuments(
         collection: _collection,
         filters: [QueryFilter('ownerId', ownerId)],
-        orders: [QueryOrder('name')],
+        // Removed ordering to avoid composite index requirement
+        // orders: [QueryOrder('name')],
       );
 
       debugPrint(
@@ -102,18 +107,16 @@ class ContactService {
         debugPrint(
             'getContactsByOwner: Processing document ${doc.id} with data: $data');
 
-        // Fetch the owner user data
-        User? owner;
-        if (data['ownerId'] != null) {
-          owner = await _userService.getUserById(data['ownerId']);
-        }
-
+        // Use the pre-fetched owner data instead of fetching for each contact
         contacts.add(Contact.fromJson({
           'id': doc.id,
           ...data,
           'owner': owner?.toJson() ?? data['owner'],
         }));
       }
+
+      // Sort contacts by name after fetching to avoid composite index requirement
+      contacts.sort((a, b) => a.name.compareTo(b.name));
 
       debugPrint('getContactsByOwner: Returning ${contacts.length} contacts');
       return contacts;
@@ -126,13 +129,17 @@ class ContactService {
   /// Get favorite contacts by owner ID
   Future<List<Contact>> getFavoriteContacts(String ownerId) async {
     try {
+      // Fetch owner data once instead of for each contact
+      final owner = await _userService.getUserById(ownerId);
+
       final querySnapshot = await _firestoreService.getDocuments(
         collection: _collection,
         filters: [
           QueryFilter('ownerId', ownerId),
           QueryFilter('isFavorite', true),
         ],
-        orders: [QueryOrder('name')],
+        // Removed ordering to avoid composite index requirement
+        // orders: [QueryOrder('name')],
       );
 
       final contacts = <Contact>[];
@@ -140,18 +147,16 @@ class ContactService {
       for (final doc in querySnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
 
-        // Fetch the owner user data
-        User? owner;
-        if (data['ownerId'] != null) {
-          owner = await _userService.getUserById(data['ownerId']);
-        }
-
+        // Use the pre-fetched owner data instead of fetching for each contact
         contacts.add(Contact.fromJson({
           'id': doc.id,
           ...data,
           'owner': owner?.toJson() ?? data['owner'],
         }));
       }
+
+      // Sort contacts by name after fetching to avoid composite index requirement
+      contacts.sort((a, b) => a.name.compareTo(b.name));
 
       return contacts;
     } catch (e) {
@@ -162,13 +167,17 @@ class ContactService {
   /// Get blocked contacts by owner ID
   Future<List<Contact>> getBlockedContacts(String ownerId) async {
     try {
+      // Fetch owner data once instead of for each contact
+      final owner = await _userService.getUserById(ownerId);
+
       final querySnapshot = await _firestoreService.getDocuments(
         collection: _collection,
         filters: [
           QueryFilter('ownerId', ownerId),
           QueryFilter('isBlocked', true),
         ],
-        orders: [QueryOrder('name')],
+        // Removed ordering to avoid composite index requirement
+        // orders: [QueryOrder('name')],
       );
 
       final contacts = <Contact>[];
@@ -176,18 +185,16 @@ class ContactService {
       for (final doc in querySnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
 
-        // Fetch the owner user data
-        User? owner;
-        if (data['ownerId'] != null) {
-          owner = await _userService.getUserById(data['ownerId']);
-        }
-
+        // Use the pre-fetched owner data instead of fetching for each contact
         contacts.add(Contact.fromJson({
           'id': doc.id,
           ...data,
           'owner': owner?.toJson() ?? data['owner'],
         }));
       }
+
+      // Sort contacts by name after fetching to avoid composite index requirement
+      contacts.sort((a, b) => a.name.compareTo(b.name));
 
       return contacts;
     } catch (e) {
@@ -249,31 +256,34 @@ class ContactService {
   Stream<List<Contact>> streamContactsByOwner(String ownerId) {
     try {
       debugPrint('streamContactsByOwner: Creating stream for owner $ownerId');
+
       return _firestoreService.streamDocuments(
         collection: _collection,
         filters: [QueryFilter('ownerId', ownerId)],
-        orders: [QueryOrder('name')],
+        // Removed ordering to avoid composite index requirement
+        // orders: [QueryOrder('name')],
       ).asyncMap((querySnapshot) async {
         debugPrint(
             'streamContactsByOwner: Received ${querySnapshot.docs.length} documents');
+
+        // Fetch owner data once per stream update
+        final owner = await _userService.getUserById(ownerId);
         final contacts = <Contact>[];
 
         for (final doc in querySnapshot.docs) {
           final data = doc.data() as Map<String, dynamic>;
           debugPrint('streamContactsByOwner: Processing document ${doc.id}');
 
-          // Fetch the owner user data
-          User? owner;
-          if (data['ownerId'] != null) {
-            owner = await _userService.getUserById(data['ownerId']);
-          }
-
+          // Use the pre-fetched owner data instead of fetching for each contact
           contacts.add(Contact.fromJson({
             'id': doc.id,
             ...data,
             'owner': owner?.toJson() ?? data['owner'],
           }));
         }
+
+        // Sort contacts by name after fetching to avoid composite index requirement
+        contacts.sort((a, b) => a.name.compareTo(b.name));
 
         debugPrint(
             'streamContactsByOwner: Returning ${contacts.length} contacts');
@@ -294,25 +304,26 @@ class ContactService {
           QueryFilter('ownerId', ownerId),
           QueryFilter('isFavorite', true),
         ],
-        orders: [QueryOrder('name')],
+        // Removed ordering to avoid composite index requirement
+        // orders: [QueryOrder('name')],
       ).asyncMap((querySnapshot) async {
+        // Fetch owner data once per stream update
+        final owner = await _userService.getUserById(ownerId);
         final contacts = <Contact>[];
 
         for (final doc in querySnapshot.docs) {
           final data = doc.data() as Map<String, dynamic>;
 
-          // Fetch the owner user data
-          User? owner;
-          if (data['ownerId'] != null) {
-            owner = await _userService.getUserById(data['ownerId']);
-          }
-
+          // Use the pre-fetched owner data instead of fetching for each contact
           contacts.add(Contact.fromJson({
             'id': doc.id,
             ...data,
             'owner': owner?.toJson() ?? data['owner'],
           }));
         }
+
+        // Sort contacts by name after fetching to avoid composite index requirement
+        contacts.sort((a, b) => a.name.compareTo(b.name));
 
         return contacts;
       });
