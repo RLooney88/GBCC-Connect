@@ -1,6 +1,8 @@
 class AppRoutes {
   // Auth routes
+  static const String splash = '/splash';
   static const String login = '/login';
+  static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
 
   // Main app routes
@@ -13,11 +15,13 @@ class AppRoutes {
   static const String contactLibrary = '/contact-library';
   static const String addContact = '/add-contact';
   static const String editContact = '/edit-contact';
-  static const String contactDetails = '/contact-details';
+  static const String contactProfile = '/contact-profile';
+  static const String qrCode = '/qr-code';
 
   // Conversation routes
   static const String conversations = '/conversations';
   static const String chat = '/chat';
+  static const String contactSelection = '/contact-selection';
 
   // Sample feature routes (can be removed later)
   static const String sampleItemList = '/sample-items';
@@ -25,7 +29,9 @@ class AppRoutes {
 
   // Helper method to get all routes
   static List<String> get allRoutes => [
+        splash,
         login,
+        register,
         forgotPassword,
         dashboard,
         profile,
@@ -34,9 +40,11 @@ class AppRoutes {
         contactLibrary,
         addContact,
         editContact,
-        contactDetails,
+        contactProfile,
+        qrCode,
         conversations,
         chat,
+        contactSelection,
         sampleItemList,
         sampleItemDetails,
       ];

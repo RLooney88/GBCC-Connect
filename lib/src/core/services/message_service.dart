@@ -1,7 +1,14 @@
 import '../models/message.dart';
-import 'firestore_service.dart';
+import '../providers/firebase_provider.dart';
 import 'conversation_service.dart';
 
+/// MessageService
+/// Mission: Handle message CRUD inside conversations.
+/// Responsibilities:
+/// - Send message to a conversation
+/// - Fetch messages (real-time stream or pagination)
+/// - Mark messages as read
+/// - Delete or edit messages (if allowed)
 class MessageService {
   static MessageService? _instance;
   static MessageService get instance =>
@@ -9,9 +16,19 @@ class MessageService {
 
   MessageService._internal();
 
-  final FirestoreService _firestoreService = FirestoreService.instance;
-  final ConversationService _conversationService = ConversationService.instance;
+  FirebaseProvider? _firebaseProvider;
+  ConversationService? _conversationService;
   static const String _collection = 'messages';
+
+  /// Initialize the service with FirebaseProvider
+  Future<void> initialize(FirebaseProvider firebaseProvider) async {
+    _firebaseProvider = firebaseProvider;
+  }
+
+  /// Set conversation service reference (called after ConversationService is initialized)
+  void setConversationService(ConversationService conversationService) {
+    _conversationService = conversationService;
+  }
 
   /// Send a message and update conversation
   Future<String> sendMessage(
@@ -50,14 +67,16 @@ class MessageService {
       // Save the message
       final messageId = await createMessage(message);
 
-      // Get or create conversation
-      final conversation = await _conversationService.getOrCreateConversation(
-          senderId, receiverId);
+      // Get or create conversation (only if conversation service is available)
+      if (_conversationService != null) {
+        final conversation = await _conversationService!
+            .getOrCreateConversation(senderId, receiverId);
 
-      // Update conversation with the new message
-      final updatedMessage = message.copyWith(id: messageId);
-      await _conversationService.updateConversationWithMessage(
-          conversation.id, updatedMessage);
+        // Update conversation with the new message
+        final updatedMessage = message.copyWith(id: messageId);
+        await _conversationService!
+            .updateConversationWithMessage(conversation.id, updatedMessage);
+      }
 
       return messageId;
     } catch (e) {
@@ -68,9 +87,9 @@ class MessageService {
   /// Create a new message
   Future<String> createMessage(Message message) async {
     try {
-      final docRef = await _firestoreService.createDocument(
-        collection: _collection,
-        data: message.toJson(),
+      final docRef = await _firebaseProvider!.createDocument(
+        _collection,
+        message.toJson(),
       );
       return docRef.id;
     } catch (e) {
@@ -81,10 +100,7 @@ class MessageService {
   /// Get message by ID
   Future<Message?> getMessageById(String messageId) async {
     try {
-      final doc = await _firestoreService.getDocument(
-        collection: _collection,
-        documentId: messageId,
-      );
+      final doc = await _firebaseProvider!.getDocument(_collection, messageId);
 
       if (doc != null && doc.exists) {
         return Message.fromJson({
@@ -101,10 +117,10 @@ class MessageService {
   /// Update message
   Future<void> updateMessage(String messageId, Message message) async {
     try {
-      await _firestoreService.updateDocument(
-        collection: _collection,
-        documentId: messageId,
-        data: message.toJson(),
+      await _firebaseProvider!.updateDocument(
+        _collection,
+        messageId,
+        message.toJson(),
       );
     } catch (e) {
       throw Exception('Failed to update message: $e');
@@ -114,10 +130,7 @@ class MessageService {
   /// Delete message
   Future<void> deleteMessage(String messageId) async {
     try {
-      await _firestoreService.deleteDocument(
-        collection: _collection,
-        documentId: messageId,
-      );
+      await _firebaseProvider!.deleteDocument(_collection, messageId);
     } catch (e) {
       throw Exception('Failed to delete message: $e');
     }
@@ -128,23 +141,25 @@ class MessageService {
       String user1Id, String user2Id) async {
     try {
       // Get messages where user1 is sender and user2 is receiver
-      final sentMessages = await _firestoreService.getDocuments(
-        collection: _collection,
+      final sentMessages = await _firebaseProvider!.getDocuments(
+        _collection,
         filters: [
-          QueryFilter('senderId', user1Id),
-          QueryFilter('receiverId', user2Id),
+          MapEntry('senderId', user1Id),
+          MapEntry('receiverId', user2Id),
         ],
-        orders: [QueryOrder('timestamp', descending: false)],
+        orderBy: 'timestamp',
+        descending: false,
       );
 
       // Get messages where user2 is sender and user1 is receiver
-      final receivedMessages = await _firestoreService.getDocuments(
-        collection: _collection,
+      final receivedMessages = await _firebaseProvider!.getDocuments(
+        _collection,
         filters: [
-          QueryFilter('senderId', user2Id),
-          QueryFilter('receiverId', user1Id),
+          MapEntry('senderId', user2Id),
+          MapEntry('receiverId', user1Id),
         ],
-        orders: [QueryOrder('timestamp', descending: false)],
+        orderBy: 'timestamp',
+        descending: false,
       );
 
       final allMessages = <Message>[];
@@ -157,7 +172,7 @@ class MessageService {
             ...doc.data() as Map<String, dynamic>,
           }));
         } catch (e) {
-          print('Error parsing sent message ${doc.id}: $e');
+          // Skip problematic messages
         }
       }
 
@@ -169,7 +184,7 @@ class MessageService {
             ...doc.data() as Map<String, dynamic>,
           }));
         } catch (e) {
-          print('Error parsing received message ${doc.id}: $e');
+          // Skip problematic messages
         }
       }
 
@@ -187,7 +202,7 @@ class MessageService {
       String conversationId) async {
     try {
       final conversation =
-          await _conversationService.getConversationById(conversationId);
+          await _conversationService!.getConversationById(conversationId);
       if (conversation == null) {
         throw Exception('Conversation not found');
       }
@@ -204,16 +219,18 @@ class MessageService {
       String userId) async {
     try {
       // Get all messages where user is sender or receiver
-      final sentMessages = await _firestoreService.getDocuments(
-        collection: _collection,
-        filters: [QueryFilter('senderId', userId)],
-        orders: [QueryOrder('timestamp', descending: true)],
+      final sentMessages = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: [MapEntry('senderId', userId)],
+        orderBy: 'timestamp',
+        descending: true,
       );
 
-      final receivedMessages = await _firestoreService.getDocuments(
-        collection: _collection,
-        filters: [QueryFilter('receiverId', userId)],
-        orders: [QueryOrder('timestamp', descending: true)],
+      final receivedMessages = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: [MapEntry('receiverId', userId)],
+        orderBy: 'timestamp',
+        descending: true,
       );
 
       final conversationMap = <String, Map<String, dynamic>>{};
@@ -288,11 +305,11 @@ class MessageService {
   /// Get unread messages count for a user
   Future<int> getUnreadMessagesCount(String userId) async {
     try {
-      final querySnapshot = await _firestoreService.getDocuments(
-        collection: _collection,
+      final querySnapshot = await _firebaseProvider!.getDocuments(
+        _collection,
         filters: [
-          QueryFilter('receiverId', userId),
-          QueryFilter('isRead', false),
+          MapEntry('receiverId', userId),
+          MapEntry('isRead', false),
         ],
       );
 
@@ -305,34 +322,33 @@ class MessageService {
   /// Mark messages as read between two users
   Future<void> markMessagesAsRead(String receiverId, String senderId) async {
     try {
-      final querySnapshot = await _firestoreService.getDocuments(
-        collection: _collection,
+      final querySnapshot = await _firebaseProvider!.getDocuments(
+        _collection,
         filters: [
-          QueryFilter('receiverId', receiverId),
-          QueryFilter('senderId', senderId),
-          QueryFilter('isRead', false),
+          MapEntry('receiverId', receiverId),
+          MapEntry('senderId', senderId),
+          MapEntry('isRead', false),
         ],
       );
 
-      final batch = <BatchOperation>[];
+      // Mark all messages as read
       for (final doc in querySnapshot.docs) {
-        batch.add(BatchOperation.update(
-          collection: _collection,
-          documentId: doc.id,
-          data: {'isRead': true},
-        ));
-      }
-
-      if (batch.isNotEmpty) {
-        await _firestoreService.batchWrite(batch);
+        await updateMessage(
+          doc.id,
+          Message.fromJson({
+            'id': doc.id,
+            ...doc.data() as Map<String, dynamic>,
+            'isRead': true,
+          }),
+        );
       }
 
       // Update conversation unread count
       final conversation =
-          await _conversationService.getConversation(receiverId, senderId);
+          await _conversationService!.getConversation(receiverId, senderId);
       if (conversation != null) {
-        await _conversationService.markConversationAsRead(
-            conversation.id, receiverId);
+        await _conversationService!
+            .markConversationAsRead(conversation.id, receiverId);
       }
     } catch (e) {
       throw Exception('Failed to mark messages as read: $e');
@@ -342,10 +358,10 @@ class MessageService {
   /// Mark a single message as read
   Future<void> markMessageAsRead(String messageId) async {
     try {
-      await _firestoreService.updateDocument(
-        collection: _collection,
-        documentId: messageId,
-        data: {
+      await _firebaseProvider!.updateDocument(
+        _collection,
+        messageId,
+        {
           'isRead': true,
         },
       );
@@ -359,21 +375,23 @@ class MessageService {
       String user1Id, String user2Id) {
     try {
       // Stream all messages where user1 is sender or receiver, then filter
-      return _firestoreService.streamDocuments(
-        collection: _collection,
-        filters: [
-          QueryFilter('senderId', user1Id),
-        ],
-        orders: [QueryOrder('timestamp', descending: false)],
-      ).asyncMap((sentSnapshot) async {
+      return _firebaseProvider!
+          .listenToCollection(
+        _collection,
+        filters: [MapEntry('senderId', user1Id)],
+        orderBy: 'timestamp',
+        descending: false,
+      )
+          .asyncMap((sentSnapshot) async {
         // Get received messages separately
-        final receivedSnapshot = await _firestoreService.getDocuments(
-          collection: _collection,
+        final receivedSnapshot = await _firebaseProvider!.getDocuments(
+          _collection,
           filters: [
-            QueryFilter('senderId', user2Id),
-            QueryFilter('receiverId', user1Id),
+            MapEntry('senderId', user2Id),
+            MapEntry('receiverId', user1Id),
           ],
-          orders: [QueryOrder('timestamp', descending: false)],
+          orderBy: 'timestamp',
+          descending: false,
         );
 
         final allMessages = <Message>[];
@@ -409,13 +427,14 @@ class MessageService {
   /// Stream messages for a conversation in real-time
   Stream<List<Message>> streamMessagesForConversation(String conversationId) {
     try {
-      return _firestoreService.streamDocuments(
-        collection: _collection,
-        filters: [
-          QueryFilter('conversationId', conversationId),
-        ],
-        orders: [QueryOrder('timestamp', descending: false)],
-      ).map((querySnapshot) {
+      return _firebaseProvider!
+          .listenToCollection(
+        _collection,
+        filters: [MapEntry('conversationId', conversationId)],
+        orderBy: 'timestamp',
+        descending: false,
+      )
+          .map((querySnapshot) {
         final messages = <Message>[];
 
         for (final doc in querySnapshot.docs) {
@@ -425,15 +444,12 @@ class MessageService {
               ...doc.data() as Map<String, dynamic>,
             }));
           } catch (e) {
-            print('Error parsing message ${doc.id}: $e');
+            // Skip problematic messages
           }
         }
 
         messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
         return messages;
-      }).handleError((error) {
-        print('Error in streamMessagesForConversation: $error');
-        return <Message>[];
       });
     } catch (e) {
       throw Exception('Failed to stream messages for conversation: $e');
@@ -444,14 +460,14 @@ class MessageService {
   Future<List<Message>> searchMessages(String userId, String searchTerm) async {
     try {
       // Get all messages where user is sender or receiver
-      final sentMessages = await _firestoreService.getDocuments(
-        collection: _collection,
-        filters: [QueryFilter('senderId', userId)],
+      final sentMessages = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: [MapEntry('senderId', userId)],
       );
 
-      final receivedMessages = await _firestoreService.getDocuments(
-        collection: _collection,
-        filters: [QueryFilter('receiverId', userId)],
+      final receivedMessages = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: [MapEntry('receiverId', userId)],
       );
 
       final allMessages = <Message>[];
@@ -487,16 +503,9 @@ class MessageService {
       // Get all messages in the conversation
       final conversation = await getMessagesBetweenUsers(user1Id, user2Id);
 
-      final batch = <BatchOperation>[];
+      // Delete all messages
       for (final message in conversation) {
-        batch.add(BatchOperation.delete(
-          collection: _collection,
-          documentId: message.id,
-        ));
-      }
-
-      if (batch.isNotEmpty) {
-        await _firestoreService.batchWrite(batch);
+        await deleteMessage(message.id);
       }
     } catch (e) {
       throw Exception('Failed to delete conversation: $e');
@@ -506,21 +515,21 @@ class MessageService {
   /// Get message statistics for a user
   Future<Map<String, int>> getMessageStats(String userId) async {
     try {
-      final sentMessages = await _firestoreService.getDocuments(
-        collection: _collection,
-        filters: [QueryFilter('senderId', userId)],
+      final sentMessages = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: [MapEntry('senderId', userId)],
       );
 
-      final receivedMessages = await _firestoreService.getDocuments(
-        collection: _collection,
-        filters: [QueryFilter('receiverId', userId)],
+      final receivedMessages = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: [MapEntry('receiverId', userId)],
       );
 
-      final unreadMessages = await _firestoreService.getDocuments(
-        collection: _collection,
+      final unreadMessages = await _firebaseProvider!.getDocuments(
+        _collection,
         filters: [
-          QueryFilter('receiverId', userId),
-          QueryFilter('isRead', false),
+          MapEntry('receiverId', userId),
+          MapEntry('isRead', false),
         ],
       );
 
@@ -539,19 +548,19 @@ class MessageService {
   Future<List<Message>> getMessagesByType(
       String userId, String messageType) async {
     try {
-      final sentMessages = await _firestoreService.getDocuments(
-        collection: _collection,
+      final sentMessages = await _firebaseProvider!.getDocuments(
+        _collection,
         filters: [
-          QueryFilter('senderId', userId),
-          QueryFilter('messageType', messageType),
+          MapEntry('senderId', userId),
+          MapEntry('messageType', messageType),
         ],
       );
 
-      final receivedMessages = await _firestoreService.getDocuments(
-        collection: _collection,
+      final receivedMessages = await _firebaseProvider!.getDocuments(
+        _collection,
         filters: [
-          QueryFilter('receiverId', userId),
-          QueryFilter('messageType', messageType),
+          MapEntry('receiverId', userId),
+          MapEntry('messageType', messageType),
         ],
       );
 

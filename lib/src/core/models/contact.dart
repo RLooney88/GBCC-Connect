@@ -12,6 +12,11 @@ class Contact {
   final String? website;
   final String? position;
   final String? notes;
+  final String? instagram;
+  final String? facebook;
+  final String? youtube;
+  final String? linkedin;
+  final String? pinterest;
   final bool isFavorite;
   final bool isBlocked;
   final bool chamberMember;
@@ -30,6 +35,11 @@ class Contact {
     this.website,
     this.position,
     this.notes,
+    this.instagram,
+    this.facebook,
+    this.youtube,
+    this.linkedin,
+    this.pinterest,
     this.isFavorite = false,
     this.isBlocked = false,
     this.chamberMember = false,
@@ -76,6 +86,11 @@ class Contact {
       website: json['website'],
       position: json['position'],
       notes: json['notes'],
+      instagram: json['instagram'],
+      facebook: json['facebook'],
+      youtube: json['youtube'],
+      linkedin: json['linkedin'],
+      pinterest: json['pinterest'],
       isFavorite: json['isFavorite'] ?? false,
       isBlocked: json['isBlocked'] ?? false,
       chamberMember: json['chamberMember'] ?? false,
@@ -130,6 +145,11 @@ class Contact {
       'website': website,
       'position': position,
       'notes': notes,
+      'instagram': instagram,
+      'facebook': facebook,
+      'youtube': youtube,
+      'linkedin': linkedin,
+      'pinterest': pinterest,
       'isFavorite': isFavorite,
       'isBlocked': isBlocked,
       'chamberMember': chamberMember,
@@ -157,6 +177,11 @@ class Contact {
     String? website,
     String? position,
     String? notes,
+    String? instagram,
+    String? facebook,
+    String? youtube,
+    String? linkedin,
+    String? pinterest,
     bool? isFavorite,
     bool? isBlocked,
     bool? chamberMember,
@@ -175,6 +200,11 @@ class Contact {
       website: website ?? this.website,
       position: position ?? this.position,
       notes: notes ?? this.notes,
+      instagram: instagram ?? this.instagram,
+      facebook: facebook ?? this.facebook,
+      youtube: youtube ?? this.youtube,
+      linkedin: linkedin ?? this.linkedin,
+      pinterest: pinterest ?? this.pinterest,
       isFavorite: isFavorite ?? this.isFavorite,
       isBlocked: isBlocked ?? this.isBlocked,
       chamberMember: chamberMember ?? this.chamberMember,

@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/providers/firebase_provider.dart';
-import '../../core/providers/auth_provider.dart';
+import '../../core/models/user.dart';
+import '../../core/services/service_manager.dart';
 import '../../core/models/message.dart';
+import '../../core/routes/app_routes.dart';
+import '../../app.dart';
 
 class ChatPage extends StatefulWidget {
-  const ChatPage({super.key});
+  final User user;
+  final ServiceManager serviceManager;
+  final String chatId;
 
-  static const routeName = '/chat';
+  const ChatPage({
+    super.key,
+    required this.user,
+    required this.serviceManager,
+    required this.chatId,
+  });
+
+  static const routeName = AppRoutes.chat;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -16,49 +26,100 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  bool _isLoading = false;
-  String? _receiverId;
   Stream<List<Message>>? _messageStream;
+  String _ownerId = '';
+  String _participantId = '';
+  String? _contactName;
+  String? _contactAvatar;
+  bool _isLoading = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Initialize Firebase provider
-      context.read<FirebaseProvider>().initialize();
-      _loadMessages();
+      _initializeChat();
     });
   }
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
+  void _initializeChat() async {
+    // Use the chatId passed to the widget
+    final chatId = widget.chatId;
 
-  void _loadMessages() {
-    final args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-    final receiverId = args?['receiverId'] as String?;
+    // Validate required parameter
+    if (chatId.isEmpty) {
+      setState(() {
+        _error = 'Missing required chat parameter: chatId';
+        _isLoading = false;
+      });
+      return;
+    }
 
-    if (receiverId != null) {
-      _receiverId = receiverId;
-      final firebaseProvider = context.read<FirebaseProvider>();
-      final authProvider = context.read<AuthProvider>();
-      final currentUser = authProvider.currentUser;
+    try {
+      // Use the ServiceManager provided by AuthenticatedPageWrapper
+      final serviceManager = widget.serviceManager;
 
-      if (currentUser != null) {
-        // Load initial messages
-        firebaseProvider.loadConversation(currentUser.id, receiverId);
+      // Use the user passed to the widget instead of AuthProvider
+      final ownerUser = widget.user;
+      final participantUser =
+          await widget.serviceManager.contactService.getContactById(chatId);
 
-        // Set up real-time streaming
-        _messageStream =
-            firebaseProvider.streamConversation(currentUser.id, receiverId);
+      // Update UI with contact details immediately
+      setState(() {
+        _ownerId = ownerUser.id;
+        _participantId =
+            chatId; // We already validated chatId is not empty above
+        _contactName = participantUser?.name ??
+            participantUser?.displayName ??
+            participantUser?.email;
+        _contactAvatar = participantUser?.name.isNotEmpty == true
+            ? participantUser!.name[0].toUpperCase()
+            : 'U';
+      });
 
-        // Mark messages as read
-        firebaseProvider.markMessagesAsRead(receiverId);
+      // get a conversation between owenerUser and participantUser
+      final conversation =
+          await serviceManager.conversationService.getConversationBetweenUsers(
+        ownerUser.id,
+        participantUser!.id,
+      );
+
+      // if no conversation, didn't get any message
+      if (conversation == null) {
+        return;
       }
+
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      // // Load initial messages
+      // await serviceManager.messageService.getMessagesBetweenUsers(
+      //   ownerUser.id,
+      //   participantUser.id,
+      // );
+
+      // // Set up real-time streaming
+      // _messageStream = serviceManager.messageService.streamMessagesBetweenUsers(
+      //   ownerUser.id,
+      //   participantUser.id,
+      // );
+
+      // // Mark messages as read
+      // await serviceManager.messageService.markMessagesAsRead(
+      //   ownerUser.id,
+      //   participantUser.id,
+      // );
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = e.toString();
+      });
     }
   }
 
@@ -70,54 +131,32 @@ class _ChatPageState extends State<ChatPage> {
     });
 
     try {
-      final firebaseProvider = context.read<FirebaseProvider>();
-      final authProvider = context.read<AuthProvider>();
-      final currentUser = authProvider.currentUser;
+      final serviceManager = widget.serviceManager;
 
-      if (currentUser == null) {
-        _showErrorSnackBar('User not authenticated. Please log in again.');
-        return;
-      }
-
-      if (_receiverId == null) {
-        _showErrorSnackBar('Receiver ID not found. Please try again.');
-        return;
-      }
-
-      // Send message using Firebase
-      await firebaseProvider.sendMessage(
-        _receiverId!,
+      await serviceManager.messageService.sendMessage(
+        _ownerId,
+        _participantId,
         _messageController.text.trim(),
       );
-
-      // Clear input
       _messageController.clear();
-
-      // Scroll to bottom after a short delay to allow message to be added
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
+      _scrollToBottom();
     } catch (e) {
-      _showErrorSnackBar('Failed to send message: ${e.toString()}');
+      if (mounted) {
+        _showErrorSnackBar('Failed to send message: ${e.toString()}');
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-    final contactName = args?['contactName'] ?? 'Contact';
-    final contactAvatar = args?['contactAvatar'] ?? 'C';
+    final contactName = _contactName ?? "N/A";
+    final contactAvatar = _contactAvatar ?? "";
 
     return Scaffold(
       appBar: AppBar(
@@ -128,7 +167,7 @@ class _ChatPageState extends State<ChatPage> {
               child: Text(
                 contactAvatar,
                 style: TextStyle(
-                  color: Theme.of(context).primaryColor,
+                  color: MyApp.primaryColor,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -137,7 +176,7 @@ class _ChatPageState extends State<ChatPage> {
             Text(contactName),
           ],
         ),
-        backgroundColor: Theme.of(context).primaryColor,
+        backgroundColor: MyApp.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -159,39 +198,27 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ],
       ),
-      body: Consumer2<AuthProvider, FirebaseProvider>(
-        builder: (context, authProvider, firebaseProvider, child) {
-          // Check if user is authenticated using AuthProvider
-          if (authProvider.currentUser == null) {
-            return const Center(
-              child: Text('Please log in to send messages'),
-            );
-          }
-
-          return Column(
-            children: [
-              Expanded(
-                child: _buildMessagesList(context, firebaseProvider),
-              ),
-              _buildMessageInput(context),
-            ],
-          );
-        },
+      body: Column(
+        children: [
+          Expanded(
+            child: _buildMessagesList(context),
+          ),
+          _buildMessageInput(context),
+        ],
       ),
     );
   }
 
-  Widget _buildMessagesList(
-      BuildContext context, FirebaseProvider firebaseProvider) {
+  Widget _buildMessagesList(BuildContext context) {
     // Show loading state
-    if (firebaseProvider.isLoading && firebaseProvider.messages.isEmpty) {
+    if (_isLoading && _messageStream == null) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
     // Show error state
-    if (firebaseProvider.error != null && firebaseProvider.messages.isEmpty) {
+    if (_error != null && _messageStream == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -208,13 +235,13 @@ class _ChatPageState extends State<ChatPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              firebaseProvider.error!,
+              _error!,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => _loadMessages(),
+              onPressed: () => _initializeChat(),
               child: const Text('Retry'),
             ),
           ],
@@ -260,19 +287,39 @@ class _ChatPageState extends State<ChatPage> {
           }
 
           final messages = snapshot.data!;
-          return _buildMessagesListView(context, messages, firebaseProvider);
+          return _buildMessagesListView(context, messages);
         },
       );
     }
 
-    // Fallback to provider messages
-    final messages = firebaseProvider.messages;
-    return _buildMessagesListView(context, messages, firebaseProvider);
+    // Fallback to empty state
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.chat_bubble_outline,
+            size: 64,
+            color: Colors.grey,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No messages yet',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Start a conversation by sending a message',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildMessagesListView(BuildContext context, List<Message> messages,
-      FirebaseProvider firebaseProvider) {
-    final authProvider = context.read<AuthProvider>();
+  Widget _buildMessagesListView(BuildContext context, List<Message> messages) {
+    // Use the user passed to the widget instead of AuthProvider
+    final currentUser = widget.user;
 
     if (messages.isEmpty) {
       return Center(
@@ -305,7 +352,7 @@ class _ChatPageState extends State<ChatPage> {
       itemCount: messages.length,
       itemBuilder: (context, index) {
         final message = messages[index];
-        final isMe = message.senderId == authProvider.currentUser?.id;
+        final isMe = message.senderId == currentUser.id;
         return _buildMessageBubble(context, message, isMe);
       },
     );
@@ -318,7 +365,7 @@ class _ChatPageState extends State<ChatPage> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? Theme.of(context).primaryColor : Colors.grey[200],
+          color: isMe ? MyApp.primaryColor : Colors.grey[200],
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -401,7 +448,7 @@ class _ChatPageState extends State<ChatPage> {
           const SizedBox(width: 8),
           FloatingActionButton(
             onPressed: _isLoading ? null : _sendMessage,
-            backgroundColor: Theme.of(context).primaryColor,
+            backgroundColor: MyApp.primaryColor,
             mini: true,
             child: _isLoading
                 ? const SizedBox(
@@ -417,6 +464,23 @@ class _ChatPageState extends State<ChatPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _showCallFeature(BuildContext context) {

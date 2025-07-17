@@ -59,13 +59,13 @@ class FirebaseConfigService {
             'Attempting to initialize Firebase with platform configuration files...');
         await Firebase.initializeApp();
         debugPrint('Firebase initialized with platform configuration');
-        return;
+      } else {
+        // Initialize Firebase Core with custom options
+        await Firebase.initializeApp(
+          options: _getFirebaseOptions(),
+        );
+        debugPrint('Firebase initialized with custom configuration');
       }
-
-      // Initialize Firebase Core
-      await Firebase.initializeApp(
-        options: _getFirebaseOptions(),
-      );
 
       // Initialize Firebase services
       await _initializeAnalytics();
@@ -76,6 +76,7 @@ class FirebaseConfigService {
       debugPrint('Firebase initialized successfully');
     } catch (e) {
       debugPrint('Error initializing Firebase: $e');
+      // Don't rethrow in production to allow app to continue
       if (kDebugMode) {
         rethrow;
       }

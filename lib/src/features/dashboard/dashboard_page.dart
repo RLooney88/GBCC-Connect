@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/models/user.dart';
 import '../../core/providers/auth_provider.dart';
-import '../../core/providers/firebase_provider.dart';
+import '../../core/services/service_manager.dart';
 import '../../core/routes/app_routes.dart';
+import '../../app.dart';
 
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key});
+  final User user;
+  final ServiceManager serviceManager;
+
+  const DashboardPage({
+    super.key,
+    required this.user,
+    required this.serviceManager,
+  });
 
   static const routeName = AppRoutes.dashboard;
 
@@ -13,22 +22,85 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageState extends State<DashboardPage>
+    with WidgetsBindingObserver {
+  Map<String, int> _contactStats = {};
+  int _unreadMessageCount = 0;
+  bool _isLoadingStats = false;
+
   @override
   void initState() {
     super.initState();
-    // Initialize Firebase provider when the page loads
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<FirebaseProvider>().initialize();
+      _loadStats();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh stats when app becomes visible
+    if (state == AppLifecycleState.resumed) {
+      _loadStats();
+    }
+  }
+
+  Future<void> _loadStats() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoadingStats = true;
+    });
+
+    try {
+      // Load stats in parallel
+      final results = await Future.wait([
+        _getContactStats(),
+        _getUnreadMessageCount(),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _contactStats = results[0] as Map<String, int>;
+          _unreadMessageCount = results[1] as int;
+          _isLoadingStats = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Dashboard: Error loading stats: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingStats = false;
+        });
+      }
+    }
+  }
+
+  Future<Map<String, int>> _getContactStats() async {
+    final stats = await widget.serviceManager.contactService
+        .getContactStats(widget.user.id);
+    return stats;
+  }
+
+  Future<int> _getUnreadMessageCount() async {
+    final count = await widget.serviceManager.conversationService
+        .getUnreadMessageCount(widget.user.id);
+    return count;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('GBCC Connect'),
-        backgroundColor: Theme.of(context).primaryColor,
+        title: Text('Dashboard'),
+        backgroundColor: MyApp.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -47,488 +119,223 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Theme.of(context).primaryColor,
-              Theme.of(context).primaryColor.withOpacity(0.8),
+      body: RefreshIndicator(
+        onRefresh: _loadStats,
+        child: SingleChildScrollView(
+          physics: AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Welcome section
+              _buildWelcomeSection(widget.user),
+              SizedBox(height: 24),
+
+              // Stats cards
+              _buildStatsSection(),
+              SizedBox(height: 24),
+
+              // Quick actions
+              _buildQuickActionsSection(),
+              SizedBox(height: 24),
             ],
           ),
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Welcome Section
-                Consumer<AuthProvider>(
-                  builder: (context, authProvider, child) {
-                    final user = authProvider.currentUser;
-
-                    if (authProvider.isLoading) {
-                      return Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 30,
-                              backgroundColor: Theme.of(context)
-                                  .primaryColor
-                                  .withOpacity(0.3),
-                              child: const CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    height: 14,
-                                    width: 100,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[300],
-                                      borderRadius: BorderRadius.circular(7),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    height: 20,
-                                    width: 150,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[300],
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    if (user == null) {
-                      return Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 30,
-                              backgroundColor: Colors.grey[400],
-                              child: const Icon(
-                                Icons.person_off,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Not signed in',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Please sign in to continue',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF2d3748),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    // Get initials safely
-                    String getInitials() {
-                      if (user.name.isNotEmpty) {
-                        return user.name.substring(0, 1).toUpperCase();
-                      } else if (user.displayName?.isNotEmpty == true) {
-                        return user.displayName!.substring(0, 1).toUpperCase();
-                      } else if (user.email.isNotEmpty) {
-                        return user.email.substring(0, 1).toUpperCase();
-                      }
-                      return 'U';
-                    }
-
-                    // Get display name
-                    String getDisplayName() {
-                      return user.name.isNotEmpty
-                          ? user.name
-                          : user.displayName ?? user.email.split('@')[0];
-                    }
-
-                    // Get subtitle
-                    String getSubtitle() {
-                      if (user.company?.isNotEmpty == true &&
-                          user.title?.isNotEmpty == true) {
-                        return '${user.title} at ${user.company}';
-                      } else if (user.company?.isNotEmpty == true) {
-                        return user.company!;
-                      } else if (user.title?.isNotEmpty == true) {
-                        return user.title!;
-                      }
-                      return user.email;
-                    }
-
-                    return Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Stack(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 30,
-                                    backgroundColor:
-                                        Theme.of(context).primaryColor,
-                                    child: Text(
-                                      getInitials(),
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                  if (user.chamberMember)
-                                    Positioned(
-                                      right: 0,
-                                      bottom: 0,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.amber,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.star,
-                                          color: Colors.white,
-                                          size: 12,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Welcome back,',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      getDisplayName(),
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF2d3748),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      getSubtitle(),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: user.status == 'active'
-                                      ? Colors.green.withOpacity(0.1)
-                                      : Colors.orange.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  user.status.toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: user.status == 'active'
-                                        ? Colors.green[700]
-                                        : Colors.orange[700],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (user.phone?.isNotEmpty == true ||
-                              user.companyPhone?.isNotEmpty == true)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.phone,
-                                    size: 16,
-                                    color: Colors.grey[600],
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    user.phone ?? user.companyPhone ?? '',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                // Quick Stats
-                const Text(
-                  'Quick Stats',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Consumer<FirebaseProvider>(
-                  builder: (context, firebaseProvider, child) {
-                    return FutureBuilder<Map<String, dynamic>>(
-                      future: Future.wait([
-                        firebaseProvider.getContactStats(),
-                        firebaseProvider.getUnreadMessageCount(),
-                      ]).then((results) => {
-                            'contacts': results[0],
-                            'unreadMessages': results[1],
-                          }),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: _buildStatCard(
-                                  'Contacts',
-                                  '...',
-                                  Icons.people,
-                                  Theme.of(context).primaryColor,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildStatCard(
-                                  'New Messages',
-                                  '...',
-                                  Icons.message,
-                                  Colors.green,
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-
-                        if (snapshot.hasError) {
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: _buildStatCard(
-                                  'Contacts',
-                                  '0',
-                                  Icons.people,
-                                  Theme.of(context).primaryColor,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildStatCard(
-                                  'New Messages',
-                                  '0',
-                                  Icons.message,
-                                  Colors.green,
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-
-                        final data = snapshot.data ?? {};
-                        final contactStats =
-                            data['contacts'] as Map<String, int>? ?? {};
-                        final unreadMessages =
-                            data['unreadMessages'] as int? ?? 0;
-
-                        return Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatCard(
-                                'Contacts',
-                                '${contactStats['total'] ?? 0}',
-                                Icons.people,
-                                Theme.of(context).primaryColor,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildStatCard(
-                                'New Messages',
-                                '$unreadMessages',
-                                Icons.message,
-                                Colors.green,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                ),
-                const SizedBox(height: 32),
-
-                // Main Features
-                const Text(
-                  'Quick Actions',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: GridView.count(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    children: [
-                      _buildFeatureCard(
-                        context,
-                        'Contacts',
-                        Icons.people_outline,
-                        Theme.of(context).primaryColor,
-                        AppRoutes.contactLibrary,
-                      ),
-                      _buildFeatureCard(
-                        context,
-                        'Add Contact',
-                        Icons.person_add_outlined,
-                        Colors.green,
-                        AppRoutes.addContact,
-                      ),
-                      _buildFeatureCard(
-                        context,
-                        'Conversations',
-                        Icons.chat_outlined,
-                        Colors.orange,
-                        AppRoutes.conversations,
-                      ),
-                      _buildFeatureCard(
-                        context,
-                        'Share QR Code',
-                        Icons.qr_code,
-                        Colors.purple,
-                        AppRoutes.profile,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        currentIndex: 0,
+        selectedItemColor: MyApp.primaryColor,
+        unselectedItemColor: Colors.grey[600],
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: 'Dashboard',
           ),
-        ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.contacts),
+            label: 'Contacts',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Chats',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+        onTap: (index) {
+          switch (index) {
+            case 1:
+              Navigator.of(context).pushNamed(AppRoutes.contactLibrary);
+              break;
+            case 2:
+              Navigator.of(context).pushNamed(AppRoutes.conversations);
+              break;
+            case 3:
+              Navigator.of(context).pushNamed(AppRoutes.profile);
+              break;
+          }
+        },
       ),
     );
   }
 
-  Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
+  Widget _buildWelcomeSection(User user) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [MyApp.primaryColor, MyApp.primaryColor.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: Colors.white,
+                child: Text(
+                  user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: MyApp.primaryColor,
+                  ),
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome back,',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      user.name,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Ready to connect with your network?',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Your Stats',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[800],
+          ),
+        ),
+        SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Total Contacts',
+                _contactStats['total']?.toString() ?? '0',
+                Icons.people,
+                Colors.blue,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                'New Messages',
+                _unreadMessageCount.toString(),
+                Icons.mark_email_unread,
+                Colors.green,
+                isFullWidth: true,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color,
+      {bool isFullWidth = false}) {
+    return Container(
+      width: isFullWidth ? double.infinity : null,
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: Offset(0, 2),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              Spacer(),
+              if (_isLoadingStats)
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: 12),
           Text(
             value,
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: color,
+              color: Colors.grey[800],
             ),
           ),
           Text(
@@ -543,50 +350,90 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildFeatureCard(
-    BuildContext context,
-    String title,
-    IconData icon,
-    Color color,
-    String route,
-  ) {
+  Widget _buildQuickActionsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[800],
+          ),
+        ),
+        SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionCard(
+                'Add Contact',
+                Icons.person_add,
+                Colors.blue,
+                () => Navigator.of(context).pushNamed(AppRoutes.addContact),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _buildActionCard(
+                'Share QR',
+                Icons.qr_code_scanner,
+                Colors.green,
+                () => Navigator.of(context).pushNamed(AppRoutes.qrCode),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _buildActionCard(
+                'New Chat',
+                Icons.chat_bubble_outline,
+                Colors.orange,
+                () => Navigator.of(context).pushNamed(AppRoutes.conversations),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionCard(
+      String title, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, route),
+      onTap: onTap,
       child: Container(
+        padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 4,
+              offset: Offset(0, 2),
             ),
           ],
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 32,
-              ),
+              child: Icon(icon, color: color, size: 24),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 8),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2d3748),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[700],
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

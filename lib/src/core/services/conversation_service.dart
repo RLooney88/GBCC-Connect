@@ -1,11 +1,16 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/conversation.dart';
 import '../models/message.dart';
 import '../models/user.dart';
-import 'firestore_service.dart';
+import '../providers/firebase_provider.dart';
 import 'user_service.dart';
 import 'message_service.dart';
 
+/// ConversationService
+/// Mission: Manage conversations/chats between user and contact user.
+/// Responsibilities:
+/// - Create a new conversation (between two or more users)
+/// - Fetch list of conversations for a user
+/// - Update conversation status (read/unread)
 class ConversationService {
   static ConversationService? _instance;
   static ConversationService get instance =>
@@ -13,19 +18,31 @@ class ConversationService {
 
   ConversationService._internal();
 
-  final FirestoreService _firestoreService = FirestoreService.instance;
-  final UserService _userService = UserService.instance;
-  final MessageService _messageService = MessageService.instance;
+  FirebaseProvider? _firebaseProvider;
+  UserService? _userService;
+  MessageService? _messageService;
   static const String _collection = 'conversations';
+
+  /// Initialize the service with dependencies
+  Future<void> initialize(
+    FirebaseProvider firebaseProvider,
+    UserService userService,
+    MessageService messageService,
+  ) async {
+    _firebaseProvider = firebaseProvider;
+    _userService = userService;
+    _messageService = messageService;
+  }
 
   /// Get all conversations for a user (where user is the owner)
   Future<List<Conversation>> getConversationsForUser(String userId) async {
     try {
       // Get conversations where user is the owner
-      final conversations = await _firestoreService.getDocuments(
-        collection: _collection,
-        filters: [QueryFilter('ownerId', userId)],
-        orders: [QueryOrder('updatedAt', descending: true)],
+      final conversations = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: [MapEntry('ownerId', userId)],
+        orderBy: 'updatedAt',
+        descending: true,
       );
 
       final List<Conversation> result = [];
@@ -41,6 +58,13 @@ class ConversationService {
 
       return result;
     } catch (e) {
+      // Check if it's a missing index error
+      if (e.toString().contains('failed-precondition') &&
+          e.toString().contains('requires an index')) {
+        throw Exception(
+            'Firestore index is missing. Please create the required index for conversations collection. '
+            'Check the firestore_indexes.md file for instructions.');
+      }
       throw Exception('Failed to get conversations: $e');
     }
   }
@@ -50,11 +74,11 @@ class ConversationService {
       String ownerId, String participantId) async {
     try {
       // Find conversation where ownerId and participantId match
-      final conversations = await _firestoreService.getDocuments(
-        collection: _collection,
+      final conversations = await _firebaseProvider!.getDocuments(
+        _collection,
         filters: [
-          QueryFilter('ownerId', ownerId),
-          QueryFilter('participantId', participantId),
+          MapEntry('ownerId', ownerId),
+          MapEntry('participantId', participantId),
         ],
       );
 
@@ -70,36 +94,104 @@ class ConversationService {
     }
   }
 
-  /// Get or create conversation between two users
+  /// Get conversation between two users (alias for getConversation)
+  Future<Conversation?> getConversationBetweenUsers(
+      String ownerId, String participantId) async {
+    return await getConversation(ownerId, participantId);
+  }
+
+  /// Get or create conversation between two users (supports email-based participants)
   Future<Conversation> getOrCreateConversation(
-      String user1Id, String user2Id) async {
+      String senderId, String receiverId) async {
     try {
-      if (user1Id.isEmpty || user2Id.isEmpty) {
+      if (senderId.isEmpty || receiverId.isEmpty) {
         throw Exception('User IDs cannot be empty');
       }
 
-      if (user1Id == user2Id) {
+      if (senderId == receiverId) {
         throw Exception('Cannot create conversation with yourself');
       }
 
+      String participantId;
+      User? participant;
+
       // Try to find conversation where user1 is owner and user2 is participant
-      Conversation? conversation = await getConversation(user1Id, user2Id);
-
-      if (conversation != null) {
-        return conversation;
-      }
-
-      // Try to find conversation where user2 is owner and user1 is participant
-      conversation = await getConversation(user2Id, user1Id);
+      Conversation? conversation = await getConversation(senderId, receiverId);
 
       if (conversation != null) {
         return conversation;
       }
 
       // Create new conversation with user1 as owner and user2 as participant
-      return await createConversation(user1Id, user2Id);
+      return await createConversationWithParticipant(
+          senderId, receiverId, null);
     } catch (e) {
       throw Exception('Failed to get or create conversation: $e');
+    }
+  }
+
+  /// Create a new conversation with a participant (supports email-based participants)
+  Future<Conversation> createConversationWithParticipant(
+      String ownerId, String participantId, User? participant) async {
+    try {
+      // Validate inputs
+      if (ownerId.isEmpty || participantId.isEmpty) {
+        throw Exception('Owner ID and participant ID cannot be empty');
+      }
+
+      if (ownerId == participantId) {
+        throw Exception('Owner and participant cannot be the same user');
+      }
+
+      // Check if conversation already exists
+      final existingConversation =
+          await getConversation(ownerId, participantId);
+      if (existingConversation != null) {
+        return existingConversation;
+      }
+
+      // Get owner details
+      final owner = await _userService!.getUserById(ownerId);
+      if (owner == null) {
+        throw Exception('Owner not found');
+      }
+
+      // If participant is null, create a minimal user object for the email
+      User participantUser;
+      if (participant != null) {
+        participantUser = participant;
+      } else {
+        // Create a minimal user object for email-based participant
+        participantUser = User(
+          id: participantId, // Use email as ID
+          name: participantId.split('@')[0], // Use email prefix as name
+          email: participantId,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      }
+
+      final conversation = Conversation(
+        id: '',
+        ownerId: ownerId,
+        participantId: participantId,
+        owner: owner,
+        participant: participantUser,
+        lastMessage: null,
+        unreadCount: 0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        isActive: true,
+      );
+
+      final docRef = await _firebaseProvider!.createDocument(
+        _collection,
+        conversation.toJson(),
+      );
+
+      return conversation.copyWith(id: docRef.id);
+    } catch (e) {
+      throw Exception('Failed to create conversation: $e');
     }
   }
 
@@ -114,17 +206,17 @@ class ConversationService {
 
       if (existingConversation != null) {
         // Update existing conversation
-        await _firestoreService.updateDocument(
-          collection: _collection,
-          documentId: existingConversation.id,
-          data: conversation.toJson(),
+        await _firebaseProvider!.updateDocument(
+          _collection,
+          existingConversation.id,
+          conversation.toJson(),
         );
         return existingConversation.id;
       } else {
         // Create new conversation
-        final docRef = await _firestoreService.createDocument(
-          collection: _collection,
-          data: conversation.toJson(),
+        final docRef = await _firebaseProvider!.createDocument(
+          _collection,
+          conversation.toJson(),
         );
         return docRef.id;
       }
@@ -137,13 +229,13 @@ class ConversationService {
   Future<void> updateConversationWithMessage(
       String conversationId, Message message) async {
     try {
-      await _firestoreService.updateDocument(
-        collection: _collection,
-        documentId: conversationId,
-        data: {
+      await _firebaseProvider!.updateDocument(
+        _collection,
+        conversationId,
+        {
           'lastMessageId': message.id,
           'lastMessage': message.toJson(),
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': DateTime.now().toIso8601String(),
         },
       );
     } catch (e) {
@@ -154,11 +246,11 @@ class ConversationService {
   /// Get unread message count for a user
   Future<int> getUnreadMessageCount(String userId) async {
     try {
-      final unreadMessages = await _firestoreService.getDocuments(
-        collection: 'messages',
+      final unreadMessages = await _firebaseProvider!.getDocuments(
+        'messages',
         filters: [
-          QueryFilter('receiverId', userId),
-          QueryFilter('isRead', false),
+          MapEntry('receiverId', userId),
+          MapEntry('isRead', false),
         ],
       );
 
@@ -178,18 +270,18 @@ class ConversationService {
 
       final otherUserId = conversation.getOtherUserId(userId);
 
-      final unreadMessages = await _firestoreService.getDocuments(
-        collection: 'messages',
+      final unreadMessages = await _firebaseProvider!.getDocuments(
+        'messages',
         filters: [
-          QueryFilter('senderId', otherUserId),
-          QueryFilter('receiverId', userId),
-          QueryFilter('isRead', false),
+          MapEntry('senderId', otherUserId),
+          MapEntry('receiverId', userId),
+          MapEntry('isRead', false),
         ],
       );
 
       // Mark all messages as read
       for (final doc in unreadMessages.docs) {
-        await _messageService.updateMessage(
+        await _messageService!.updateMessage(
             doc.id,
             Message.fromJson({
               'id': doc.id,
@@ -199,12 +291,12 @@ class ConversationService {
       }
 
       // Update conversation unread count
-      await _firestoreService.updateDocument(
-        collection: _collection,
-        documentId: conversationId,
-        data: {
+      await _firebaseProvider!.updateDocument(
+        _collection,
+        conversationId,
+        {
           'unreadCount': 0,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': DateTime.now().toIso8601String(),
         },
       );
     } catch (e) {
@@ -215,10 +307,8 @@ class ConversationService {
   /// Get conversation by ID
   Future<Conversation?> getConversationById(String conversationId) async {
     try {
-      final doc = await _firestoreService.getDocument(
-        collection: _collection,
-        documentId: conversationId,
-      );
+      final doc =
+          await _firebaseProvider!.getDocument(_collection, conversationId);
 
       if (doc != null && doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
@@ -255,8 +345,6 @@ class ConversationService {
       final participantId = data['participantId'] as String?;
 
       if (ownerId == null || participantId == null) {
-        print(
-            'Warning: Missing ownerId or participantId in conversation $docId');
         return null;
       }
 
@@ -268,12 +356,11 @@ class ConversationService {
         try {
           owner = User.fromJson(data['owner'] as Map<String, dynamic>);
         } catch (e) {
-          print('Error parsing owner data for conversation $docId: $e');
           // Fallback to fetching from service
-          owner = await _userService.getUserById(ownerId);
+          owner = await _userService!.getUserById(ownerId);
         }
       } else {
-        owner = await _userService.getUserById(ownerId);
+        owner = await _userService!.getUserById(ownerId);
       }
 
       // Get participant details
@@ -283,17 +370,39 @@ class ConversationService {
           participant =
               User.fromJson(data['participant'] as Map<String, dynamic>);
         } catch (e) {
-          print('Error parsing participant data for conversation $docId: $e');
           // Fallback to fetching from service
-          participant = await _userService.getUserById(participantId);
+          // Check if participantId is an email
+          if (participantId.contains('@')) {
+            participant = await _userService!.getUserByEmail(participantId);
+            participant ??= User(
+              id: participantId,
+              name: participantId.split('@')[0],
+              email: participantId,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
+          } else {
+            participant = await _userService!.getUserById(participantId);
+          }
         }
       } else {
-        participant = await _userService.getUserById(participantId);
+        // Check if participantId is an email
+        if (participantId.contains('@')) {
+          participant = await _userService!.getUserByEmail(participantId);
+          participant ??= User(
+            id: participantId,
+            name: participantId.split('@')[0],
+            email: participantId,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+        } else {
+          participant = await _userService!.getUserById(participantId);
+        }
       }
 
-      // Skip conversation if we can't get user data
-      if (owner == null || participant == null) {
-        print('Warning: Could not fetch user data for conversation $docId');
+      // Skip conversation if we can't get owner data
+      if (owner == null) {
         return null;
       }
 
@@ -302,9 +411,8 @@ class ConversationService {
       if (data['lastMessageId'] != null) {
         try {
           lastMessage =
-              await _messageService.getMessageById(data['lastMessageId']);
+              await _messageService!.getMessageById(data['lastMessageId']);
         } catch (e) {
-          print('Error fetching last message for conversation $docId: $e');
           // Continue without last message
         }
       }
@@ -314,7 +422,7 @@ class ConversationService {
         'ownerId': ownerId,
         'participantId': participantId,
         'owner': owner.toJson(),
-        'participant': participant.toJson(),
+        'participant': participant?.toJson(),
         'lastMessage': lastMessage?.toJson(),
         'unreadCount': data['unreadCount'] ?? 0,
         'createdAt': data['createdAt'],
@@ -322,7 +430,6 @@ class ConversationService {
         'isActive': data['isActive'] ?? true,
       });
     } catch (e) {
-      print('Error building conversation from data for $docId: $e');
       return null;
     }
   }
@@ -348,8 +455,8 @@ class ConversationService {
       }
 
       // Get participant details
-      final owner = await _userService.getUserById(ownerId);
-      final participant = await _userService.getUserById(participantId);
+      final owner = await _userService!.getUserById(ownerId);
+      final participant = await _userService!.getUserById(participantId);
 
       if (owner == null || participant == null) {
         throw Exception('Owner or participant not found');
@@ -368,9 +475,9 @@ class ConversationService {
         isActive: true,
       );
 
-      final docRef = await _firestoreService.createDocument(
-        collection: _collection,
-        data: conversation.toJson(),
+      final docRef = await _firebaseProvider!.createDocument(
+        _collection,
+        conversation.toJson(),
       );
 
       return conversation.copyWith(id: docRef.id);
@@ -383,12 +490,12 @@ class ConversationService {
   Future<void> toggleConversationArchive(
       String conversationId, bool isActive) async {
     try {
-      await _firestoreService.updateDocument(
-        collection: _collection,
-        documentId: conversationId,
-        data: {
+      await _firebaseProvider!.updateDocument(
+        _collection,
+        conversationId,
+        {
           'isActive': isActive,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': DateTime.now().toIso8601String(),
         },
       );
     } catch (e) {
@@ -397,25 +504,70 @@ class ConversationService {
   }
 
   /// Delete conversation
+  ///
+  /// This method will:
+  /// 1. Find the conversation by ID
+  /// 2. Delete all messages between the participants
+  /// 3. Delete the conversation document itself
+  ///
+  /// Note: This action is irreversible and will permanently delete all data
   Future<void> deleteConversation(String conversationId) async {
     try {
-      // Delete all messages in the conversation first
+      // Get conversation details first
       final conversation = await getConversationById(conversationId);
-      if (conversation != null) {
-        // Delete messages between the two users
-        await _deleteMessagesBetweenUsers(
-          conversation.ownerId,
-          conversation.participantId,
-        );
+      if (conversation == null) {
+        throw Exception('Conversation not found');
+      }
+
+      // Delete all messages in the conversation first
+      await _deleteMessagesBetweenUsers(
+        conversation.ownerId,
+        conversation.participantId,
+      );
+
+      // Delete the conversation
+      await _firebaseProvider!.deleteDocument(_collection, conversationId);
+    } catch (e) {
+      throw Exception('Failed to delete conversation: $e');
+    }
+  }
+
+  /// Delete multiple conversations
+  ///
+  /// This method will delete multiple conversations in sequence.
+  /// If any deletion fails, the error will be thrown and subsequent
+  /// deletions will not be attempted.
+  ///
+  /// Note: This action is irreversible and will permanently delete all data
+  Future<void> deleteMultipleConversations(List<String> conversationIds) async {
+    try {
+      for (final conversationId in conversationIds) {
+        await deleteConversation(conversationId);
+      }
+    } catch (e) {
+      throw Exception('Failed to delete conversations: $e');
+    }
+  }
+
+  /// Delete conversation with participant (by user ID or email)
+  ///
+  /// This method will find and delete a conversation between the owner
+  /// and the specified participant (can be user ID or email).
+  ///
+  /// Note: This action is irreversible and will permanently delete all data
+  Future<void> deleteConversationWithParticipant(
+      String ownerId, String participantIdOrEmail) async {
+    try {
+      // Find the conversation
+      final conversation = await getConversation(ownerId, participantIdOrEmail);
+      if (conversation == null) {
+        throw Exception('Conversation not found');
       }
 
       // Delete the conversation
-      await _firestoreService.deleteDocument(
-        collection: _collection,
-        documentId: conversationId,
-      );
+      await deleteConversation(conversation.id);
     } catch (e) {
-      throw Exception('Failed to delete conversation: $e');
+      throw Exception('Failed to delete conversation with participant: $e');
     }
   }
 
@@ -424,43 +576,40 @@ class ConversationService {
       String user1Id, String user2Id) async {
     try {
       // Get all messages between the two users
-      final messages = await _firestoreService.getDocuments(
-        collection: 'messages',
+      final messages = await _firebaseProvider!.getDocuments(
+        'messages',
         filters: [
-          QueryFilter('senderId', user1Id),
-          QueryFilter('receiverId', user2Id),
+          MapEntry('senderId', user1Id),
+          MapEntry('receiverId', user2Id),
         ],
       );
 
       // Also get messages in reverse direction
-      final reverseMessages = await _firestoreService.getDocuments(
-        collection: 'messages',
+      final reverseMessages = await _firebaseProvider!.getDocuments(
+        'messages',
         filters: [
-          QueryFilter('senderId', user2Id),
-          QueryFilter('receiverId', user1Id),
+          MapEntry('senderId', user2Id),
+          MapEntry('receiverId', user1Id),
         ],
       );
 
       // Delete all messages
       final allMessages = [...messages.docs, ...reverseMessages.docs];
       for (final doc in allMessages) {
-        await _firestoreService.deleteDocument(
-          collection: 'messages',
-          documentId: doc.id,
-        );
+        await _firebaseProvider!.deleteDocument('messages', doc.id);
       }
     } catch (e) {
       throw Exception('Failed to delete messages between users: $e');
     }
   }
 
-  /// Stream conversations for real-time updates
+  /// Stream conversations for real-time updates (without indexing)
   Stream<List<Conversation>> streamConversationsForUser(String userId) {
     try {
-      return _firestoreService.streamDocuments(
-        collection: _collection,
-        filters: [QueryFilter('ownerId', userId)],
-        orders: [QueryOrder('updatedAt', descending: true)],
+      return _firebaseProvider!.listenToCollection(
+        _collection,
+        filters: [MapEntry('ownerId', userId)],
+        // Removed orderBy to avoid indexing requirement
       ).asyncMap((querySnapshot) async {
         final conversations = <Conversation>[];
 
@@ -472,14 +621,14 @@ class ConversationService {
               conversations.add(conversation);
             }
           } catch (e) {
-            print('Error processing conversation ${doc.id}: $e');
+            // Skip problematic conversations
           }
         }
 
+        // Sort conversations by updatedAt in descending order (latest first)
+        conversations.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
         return conversations;
-      }).handleError((error) {
-        print('Error in streamConversationsForUser: $error');
-        return <Conversation>[];
       });
     } catch (e) {
       throw Exception('Failed to stream conversations: $e');
@@ -493,6 +642,96 @@ class ConversationService {
       return allConversations.where((c) => c.isActive).toList();
     } catch (e) {
       throw Exception('Failed to get active conversations: $e');
+    }
+  }
+
+  /// Get conversations without ordering (no indexing required)
+  Future<List<Conversation>> getConversationsWithoutOrdering(
+      String userId) async {
+    try {
+      final conversations = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: [MapEntry('ownerId', userId)],
+        // No orderBy to avoid indexing
+      );
+
+      final List<Conversation> result = [];
+
+      for (final doc in conversations.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final conversation = await _buildConversationFromData(doc.id, data);
+        if (conversation != null) {
+          result.add(conversation);
+        }
+      }
+
+      // Sort in memory by updatedAt (latest first)
+      result.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+      return result;
+    } catch (e) {
+      throw Exception('Failed to get conversations without ordering: $e');
+    }
+  }
+
+  /// Get recent conversations with limit (no indexing required)
+  Future<List<Conversation>> getRecentConversations(String userId,
+      {int limit = 10}) async {
+    try {
+      final conversations = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: [MapEntry('ownerId', userId)],
+        limit: limit,
+        // No orderBy to avoid indexing
+      );
+
+      final List<Conversation> result = [];
+
+      for (final doc in conversations.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final conversation = await _buildConversationFromData(doc.id, data);
+        if (conversation != null) {
+          result.add(conversation);
+        }
+      }
+
+      // Sort in memory and limit results
+      result.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      return result.take(limit).toList();
+    } catch (e) {
+      throw Exception('Failed to get recent conversations: $e');
+    }
+  }
+
+  /// Stream conversations without ordering (no indexing required)
+  Stream<List<Conversation>> streamConversationsWithoutOrdering(String userId) {
+    try {
+      return _firebaseProvider!.listenToCollection(
+        _collection,
+        filters: [MapEntry('ownerId', userId)],
+        // No orderBy to avoid indexing
+      ).asyncMap((querySnapshot) async {
+        final conversations = <Conversation>[];
+
+        for (final doc in querySnapshot.docs) {
+          try {
+            final data = doc.data() as Map<String, dynamic>;
+            final conversation = await _buildConversationFromData(doc.id, data);
+            if (conversation != null) {
+              conversations.add(conversation);
+            }
+          } catch (e) {
+            // Skip problematic conversations
+          }
+        }
+
+        // Sort in memory by updatedAt (latest first)
+        conversations.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+        return conversations;
+      });
+    } catch (e) {
+      throw Exception('Failed to stream conversations without ordering: $e');
     }
   }
 

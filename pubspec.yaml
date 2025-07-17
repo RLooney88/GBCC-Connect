@@ -76,6 +76,12 @@ dependencies:
   # Device Info
   device_info_plus: ^11.3.0
 
+  # URL Launcher
+  url_launcher: ^6.2.4
+
+  # Icons
+  font_awesome_flutter: ^10.7.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

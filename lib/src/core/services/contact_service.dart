@@ -1,10 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import '../models/contact.dart';
 import '../models/user.dart';
-import 'firestore_service.dart';
-import 'user_service.dart';
+import '../providers/firebase_provider.dart';
 
+/// Domain/Business Logic Layer: ContactService
+/// Mission: Implement contact-specific logic and transform data for the UI
+/// - Business logic for contacts (fetching, searching, saving, deleting, etc.)
+/// - Pure Dart code (no Flutter imports)
+/// - Abstracts over FirebaseProvider or any data source
+/// - Handles data mapping/DTOs if necessary
 class ContactService {
   static ContactService? _instance;
   static ContactService get instance =>
@@ -12,16 +16,20 @@ class ContactService {
 
   ContactService._internal();
 
-  final FirestoreService _firestoreService = FirestoreService.instance;
-  final UserService _userService = UserService.instance;
+  FirebaseProvider? _firebaseProvider;
   static const String _collection = 'contacts';
+
+  /// Initialize the service with FirebaseProvider
+  Future<void> initialize(FirebaseProvider firebaseProvider) async {
+    _firebaseProvider = firebaseProvider;
+  }
 
   /// Create a new contact
   Future<String> createContact(Contact contact) async {
     try {
-      final docRef = await _firestoreService.createDocument(
-        collection: _collection,
-        data: contact.toJson(),
+      final docRef = await _firebaseProvider!.createDocument(
+        _collection,
+        contact.toJson(),
       );
       return docRef.id;
     } catch (e) {
@@ -32,10 +40,7 @@ class ContactService {
   /// Get contact by ID
   Future<Contact?> getContactById(String contactId) async {
     try {
-      final doc = await _firestoreService.getDocument(
-        collection: _collection,
-        documentId: contactId,
-      );
+      final doc = await _firebaseProvider!.getDocument(_collection, contactId);
 
       if (doc != null && doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
@@ -43,13 +48,13 @@ class ContactService {
         // Fetch the owner user data
         User? owner;
         if (data['ownerId'] != null) {
-          owner = await _userService.getUserById(data['ownerId']);
+          owner = await _getUserById(data['ownerId']);
         }
 
         return Contact.fromJson({
           'id': doc.id,
           ...data,
-          'owner': owner?.toJson() ?? data['owner'],
+          'owner': owner != null ? owner.toJson() : data['owner'],
         });
       }
       return null;
@@ -61,10 +66,10 @@ class ContactService {
   /// Update contact
   Future<void> updateContact(String contactId, Contact contact) async {
     try {
-      await _firestoreService.updateDocument(
-        collection: _collection,
-        documentId: contactId,
-        data: contact.toJson(),
+      await _firebaseProvider!.updateDocument(
+        _collection,
+        contactId,
+        contact.toJson(),
       );
     } catch (e) {
       throw Exception('Failed to update contact: $e');
@@ -74,161 +79,91 @@ class ContactService {
   /// Delete contact
   Future<void> deleteContact(String contactId) async {
     try {
-      await _firestoreService.deleteDocument(
-        collection: _collection,
-        documentId: contactId,
-      );
+      await _firebaseProvider!.deleteDocument(_collection, contactId);
     } catch (e) {
       throw Exception('Failed to delete contact: $e');
     }
   }
 
-  /// Get contacts by owner ID
-  Future<List<Contact>> getContactsByOwner(String ownerId) async {
+  /// Get contacts by owner
+  Future<List<Contact>> getContactsByOwner(
+    String ownerId, {
+    int? limit,
+    DocumentSnapshot? startAfter,
+  }) async {
     try {
-      debugPrint('getContactsByOwner: Fetching contacts for owner $ownerId');
-
       // Fetch owner data once instead of for each contact
-      final owner = await _userService.getUserById(ownerId);
+      final owner = await _getUserById(ownerId);
 
-      final querySnapshot = await _firestoreService.getDocuments(
-        collection: _collection,
-        filters: [QueryFilter('ownerId', ownerId)],
-        // Removed ordering to avoid composite index requirement
-        // orders: [QueryOrder('name')],
+      final filters = [MapEntry('ownerId', ownerId)];
+      final querySnapshot = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: filters,
+        limit: limit,
+        startAfter: startAfter,
+        // Removed orderBy to avoid indexing requirement
       );
 
-      debugPrint(
-          'getContactsByOwner: Found ${querySnapshot.docs.length} documents');
       final contacts = <Contact>[];
-
       for (final doc in querySnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        debugPrint(
-            'getContactsByOwner: Processing document ${doc.id} with data: $data');
-
-        // Use the pre-fetched owner data instead of fetching for each contact
         contacts.add(Contact.fromJson({
           'id': doc.id,
           ...data,
-          'owner': owner?.toJson() ?? data['owner'],
+          'owner': owner != null ? owner.toJson() : data['owner'],
         }));
       }
 
-      // Sort contacts by name after fetching to avoid composite index requirement
-      contacts.sort((a, b) => a.name.compareTo(b.name));
+      // Sort contacts by name on the client side
+      contacts
+          .sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-      debugPrint('getContactsByOwner: Returning ${contacts.length} contacts');
       return contacts;
     } catch (e) {
-      debugPrint('getContactsByOwner: Error fetching contacts: $e');
       throw Exception('Failed to get contacts by owner: $e');
     }
   }
 
-  /// Get favorite contacts by owner ID
-  Future<List<Contact>> getFavoriteContacts(String ownerId) async {
-    try {
-      // Fetch owner data once instead of for each contact
-      final owner = await _userService.getUserById(ownerId);
-
-      final querySnapshot = await _firestoreService.getDocuments(
-        collection: _collection,
-        filters: [
-          QueryFilter('ownerId', ownerId),
-          QueryFilter('isFavorite', true),
-        ],
-        // Removed ordering to avoid composite index requirement
-        // orders: [QueryOrder('name')],
-      );
-
-      final contacts = <Contact>[];
-
-      for (final doc in querySnapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-
-        // Use the pre-fetched owner data instead of fetching for each contact
-        contacts.add(Contact.fromJson({
-          'id': doc.id,
-          ...data,
-          'owner': owner?.toJson() ?? data['owner'],
-        }));
-      }
-
-      // Sort contacts by name after fetching to avoid composite index requirement
-      contacts.sort((a, b) => a.name.compareTo(b.name));
-
-      return contacts;
-    } catch (e) {
-      throw Exception('Failed to get favorite contacts: $e');
-    }
-  }
-
-  /// Get blocked contacts by owner ID
-  Future<List<Contact>> getBlockedContacts(String ownerId) async {
-    try {
-      // Fetch owner data once instead of for each contact
-      final owner = await _userService.getUserById(ownerId);
-
-      final querySnapshot = await _firestoreService.getDocuments(
-        collection: _collection,
-        filters: [
-          QueryFilter('ownerId', ownerId),
-          QueryFilter('isBlocked', true),
-        ],
-        // Removed ordering to avoid composite index requirement
-        // orders: [QueryOrder('name')],
-      );
-
-      final contacts = <Contact>[];
-
-      for (final doc in querySnapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-
-        // Use the pre-fetched owner data instead of fetching for each contact
-        contacts.add(Contact.fromJson({
-          'id': doc.id,
-          ...data,
-          'owner': owner?.toJson() ?? data['owner'],
-        }));
-      }
-
-      // Sort contacts by name after fetching to avoid composite index requirement
-      contacts.sort((a, b) => a.name.compareTo(b.name));
-
-      return contacts;
-    } catch (e) {
-      throw Exception('Failed to get blocked contacts: $e');
-    }
-  }
-
-  /// Search contacts by name or email
+  /// Search contacts by name or displayName
   Future<List<Contact>> searchContacts(
       String ownerId, String searchTerm) async {
     try {
+      if (searchTerm.trim().isEmpty) {
+        return await getContactsByOwner(ownerId);
+      }
+
+      final searchLower = searchTerm.toLowerCase();
       final allContacts = await getContactsByOwner(ownerId);
 
       return allContacts.where((contact) {
-        final name = contact.name.toLowerCase();
-        final email = contact.email.toLowerCase();
-        final search = searchTerm.toLowerCase();
-
-        return name.contains(search) || email.contains(search);
+        return contact.name.toLowerCase().contains(searchLower) ||
+            (contact.displayName.toLowerCase().contains(searchLower)) ||
+            contact.email.toLowerCase().contains(searchLower) ||
+            (contact.phone?.toLowerCase().contains(searchLower) ?? false) ||
+            (contact.company?.toLowerCase().contains(searchLower) ?? false) ||
+            (contact.position?.toLowerCase().contains(searchLower) ?? false) ||
+            (contact.website?.toLowerCase().contains(searchLower) ?? false) ||
+            (contact.instagram?.toLowerCase().contains(searchLower) ?? false) ||
+            (contact.facebook?.toLowerCase().contains(searchLower) ?? false) ||
+            (contact.linkedin?.toLowerCase().contains(searchLower) ?? false) ||
+            (contact.youtube?.toLowerCase().contains(searchLower) ?? false) ||
+            (contact.pinterest?.toLowerCase().contains(searchLower) ?? false) ||
+            (contact.notes?.toLowerCase().contains(searchLower) ?? false);
       }).toList();
     } catch (e) {
       throw Exception('Failed to search contacts: $e');
     }
   }
 
-  /// Toggle favorite status
+  /// Toggle contact favorite status
   Future<void> toggleFavorite(String contactId, bool isFavorite) async {
     try {
-      await _firestoreService.updateDocument(
-        collection: _collection,
-        documentId: contactId,
-        data: {
+      await _firebaseProvider!.updateDocument(
+        _collection,
+        contactId,
+        {
           'isFavorite': isFavorite,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': DateTime.now().toIso8601String()
         },
       );
     } catch (e) {
@@ -236,147 +171,218 @@ class ContactService {
     }
   }
 
-  /// Toggle blocked status
-  Future<void> toggleBlocked(String contactId, bool isBlocked) async {
-    try {
-      await _firestoreService.updateDocument(
-        collection: _collection,
-        documentId: contactId,
-        data: {
-          'isBlocked': isBlocked,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-      );
-    } catch (e) {
-      throw Exception('Failed to toggle blocked: $e');
-    }
-  }
-
-  /// Stream contacts by owner with real-time updates
-  Stream<List<Contact>> streamContactsByOwner(String ownerId) {
-    try {
-      debugPrint('streamContactsByOwner: Creating stream for owner $ownerId');
-
-      return _firestoreService.streamDocuments(
-        collection: _collection,
-        filters: [QueryFilter('ownerId', ownerId)],
-        // Removed ordering to avoid composite index requirement
-        // orders: [QueryOrder('name')],
-      ).asyncMap((querySnapshot) async {
-        debugPrint(
-            'streamContactsByOwner: Received ${querySnapshot.docs.length} documents');
-
-        // Fetch owner data once per stream update
-        final owner = await _userService.getUserById(ownerId);
-        final contacts = <Contact>[];
-
-        for (final doc in querySnapshot.docs) {
-          final data = doc.data() as Map<String, dynamic>;
-          debugPrint('streamContactsByOwner: Processing document ${doc.id}');
-
-          // Use the pre-fetched owner data instead of fetching for each contact
-          contacts.add(Contact.fromJson({
-            'id': doc.id,
-            ...data,
-            'owner': owner?.toJson() ?? data['owner'],
-          }));
-        }
-
-        // Sort contacts by name after fetching to avoid composite index requirement
-        contacts.sort((a, b) => a.name.compareTo(b.name));
-
-        debugPrint(
-            'streamContactsByOwner: Returning ${contacts.length} contacts');
-        return contacts;
-      });
-    } catch (e) {
-      debugPrint('streamContactsByOwner: Error creating stream: $e');
-      throw Exception('Failed to stream contacts: $e');
-    }
-  }
-
-  /// Stream favorite contacts with real-time updates
-  Stream<List<Contact>> streamFavoriteContacts(String ownerId) {
-    try {
-      return _firestoreService.streamDocuments(
-        collection: _collection,
-        filters: [
-          QueryFilter('ownerId', ownerId),
-          QueryFilter('isFavorite', true),
-        ],
-        // Removed ordering to avoid composite index requirement
-        // orders: [QueryOrder('name')],
-      ).asyncMap((querySnapshot) async {
-        // Fetch owner data once per stream update
-        final owner = await _userService.getUserById(ownerId);
-        final contacts = <Contact>[];
-
-        for (final doc in querySnapshot.docs) {
-          final data = doc.data() as Map<String, dynamic>;
-
-          // Use the pre-fetched owner data instead of fetching for each contact
-          contacts.add(Contact.fromJson({
-            'id': doc.id,
-            ...data,
-            'owner': owner?.toJson() ?? data['owner'],
-          }));
-        }
-
-        // Sort contacts by name after fetching to avoid composite index requirement
-        contacts.sort((a, b) => a.name.compareTo(b.name));
-
-        return contacts;
-      });
-    } catch (e) {
-      throw Exception('Failed to stream favorite contacts: $e');
-    }
-  }
-
-  /// Get contacts by company
-  Future<List<Contact>> getContactsByCompany(
-      String ownerId, String company) async {
-    try {
-      final allContacts = await getContactsByOwner(ownerId);
-
-      return allContacts.where((contact) {
-        return contact.company?.toLowerCase() == company.toLowerCase();
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to get contacts by company: $e');
-    }
-  }
-
-  /// Update contact notes
-  Future<void> updateContactNotes(String contactId, String notes) async {
-    try {
-      await _firestoreService.updateDocument(
-        collection: _collection,
-        documentId: contactId,
-        data: {
-          'notes': notes,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-      );
-    } catch (e) {
-      throw Exception('Failed to update contact notes: $e');
-    }
-  }
-
-  /// Get contact statistics for a user
+  /// Get contact statistics
   Future<Map<String, int>> getContactStats(String ownerId) async {
     try {
-      final allContacts = await getContactsByOwner(ownerId);
+      final contacts = await getContactsByOwner(ownerId);
 
       return {
-        'total': allContacts.length,
-        'favorites': allContacts.where((c) => c.isFavorite).length,
-        'blocked': allContacts.where((c) => c.isBlocked).length,
-        'withCompany': allContacts
-            .where((c) => c.company != null && c.company!.isNotEmpty)
-            .length,
+        'total': contacts.length,
+        'favorites': contacts.where((c) => c.isFavorite).length,
+        'chamberMembers': contacts.where((c) => c.chamberMember).length,
+        'blocked': contacts.where((c) => c.isBlocked).length,
       };
     } catch (e) {
       throw Exception('Failed to get contact stats: $e');
     }
+  }
+
+  /// Stream contacts in real-time
+  Stream<List<Contact>> streamContactsByOwner(String ownerId) {
+    try {
+      final filters = [MapEntry('ownerId', ownerId)];
+      return _firebaseProvider!
+          .listenToCollection(
+        _collection,
+        filters: filters,
+        // Removed orderBy to avoid indexing requirement
+      )
+          .asyncMap((snapshot) async {
+        final owner = await _getUserById(ownerId);
+        final contacts = <Contact>[];
+
+        for (final doc in snapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          contacts.add(Contact.fromJson({
+            'id': doc.id,
+            ...data,
+            'owner': owner != null ? owner.toJson() : data['owner'],
+          }));
+        }
+
+        // Sort contacts by name on the client side
+        contacts.sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+        return contacts;
+      });
+    } catch (e) {
+      throw Exception('Failed to stream contacts: $e');
+    }
+  }
+
+  /// Validate contact data
+  bool validateContact(Contact contact) {
+    if (contact.name.trim().isEmpty) return false;
+    if (contact.email.trim().isEmpty) return false;
+    if (!_isValidEmail(contact.email)) return false;
+    return true;
+  }
+
+  /// Check if email is valid
+  bool _isValidEmail(String email) {
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    return emailRegex.hasMatch(email);
+  }
+
+  /// Get user by ID (helper method)
+  Future<User?> _getUserById(String userId) async {
+    try {
+      final doc = await _firebaseProvider!.getDocument('users', userId);
+      if (doc != null && doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        return User.fromJson({
+          'id': doc.id,
+          ...data,
+        });
+      }
+      return null;
+    } catch (e) {
+      // Return null if user not found, don't throw
+      return null;
+    }
+  }
+
+  /// Create contact from user data
+  Contact createContactFromUser(User user, String ownerId) {
+    return Contact(
+      id: '',
+      ownerId: ownerId,
+      owner: user,
+      name: user.name,
+      displayName: user.displayName ?? user.name,
+      email: user.email,
+      phone: user.phone,
+      company: user.company,
+      website: user.website,
+      position: user.title,
+      notes: user.notes,
+      isFavorite: false,
+      isBlocked: false,
+      chamberMember: user.chamberMember,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// Export contacts to CSV format
+  String exportContactsToCsv(List<Contact> contacts) {
+    final csv = StringBuffer();
+
+    // Header
+    csv.writeln(
+        'Name,Email,Phone,Company,Position,Website,Instagram,Facebook,LinkedIn,YouTube,Pinterest,Notes,Chamber Member,Blocked');
+
+    // Data
+    for (final contact in contacts) {
+      csv.writeln([
+        contact.name,
+        contact.email,
+        contact.phone ?? '',
+        contact.company ?? '',
+        contact.position ?? '',
+        contact.website ?? '',
+        contact.instagram ?? '',
+        contact.facebook ?? '',
+        contact.linkedin ?? '',
+        contact.youtube ?? '',
+        contact.pinterest ?? '',
+        contact.notes ?? '',
+        contact.chamberMember ? 'Yes' : 'No',
+        contact.isBlocked ? 'Yes' : 'No',
+      ].map((field) => '"${field.replaceAll('"', '""')}"').join(','));
+    }
+
+    return csv.toString();
+  }
+
+  /// Import contacts from CSV format
+  List<Contact> importContactsFromCsv(
+      String csvData, String ownerId, User owner) {
+    final lines = csvData.split('\n');
+    final contacts = <Contact>[];
+
+    // Skip header
+    for (int i = 1; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.isEmpty) continue;
+
+      try {
+        final fields = _parseCsvLine(line);
+        if (fields.length >= 14) {
+          final contact = Contact(
+            id: '',
+            ownerId: ownerId,
+            owner: owner,
+            name: fields[0],
+            displayName: fields[0],
+            email: fields[1],
+            phone: fields[2].isEmpty ? null : fields[2],
+            company: fields[3].isEmpty ? null : fields[3],
+            position: fields[4].isEmpty ? null : fields[4],
+            website: fields[5].isEmpty ? null : fields[5],
+            instagram: fields[6].isEmpty ? null : fields[6],
+            facebook: fields[7].isEmpty ? null : fields[7],
+            linkedin: fields[8].isEmpty ? null : fields[8],
+            youtube: fields[9].isEmpty ? null : fields[9],
+            pinterest: fields[10].isEmpty ? null : fields[10],
+            notes: fields[11].isEmpty ? null : fields[11],
+            isFavorite: false,
+            isBlocked: fields[13].toLowerCase() == 'yes',
+            chamberMember: fields[12].toLowerCase() == 'yes',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+          contacts.add(contact);
+        }
+      } catch (e) {
+        // Skip invalid lines
+        continue;
+      }
+    }
+
+    return contacts;
+  }
+
+  /// Parse CSV line with proper quote handling
+  List<String> _parseCsvLine(String line) {
+    final fields = <String>[];
+    final buffer = StringBuffer();
+    bool inQuotes = false;
+
+    for (int i = 0; i < line.length; i++) {
+      final char = line[i];
+
+      if (char == '"') {
+        if (inQuotes && i + 1 < line.length && line[i + 1] == '"') {
+          // Escaped quote
+          buffer.write('"');
+          i++; // Skip next quote
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes;
+        }
+      } else if (char == ',' && !inQuotes) {
+        // End of field
+        fields.add(buffer.toString());
+        buffer.clear();
+      } else {
+        buffer.write(char);
+      }
+    }
+
+    // Add last field
+    fields.add(buffer.toString());
+    return fields;
   }
 }

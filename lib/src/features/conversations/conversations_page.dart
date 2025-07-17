@@ -1,97 +1,429 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/providers/auth_provider.dart';
+import '../../core/models/user.dart';
+import '../../core/services/service_manager.dart';
+import '../../core/models/conversation.dart';
 import '../../core/routes/app_routes.dart';
+import '../../app.dart';
 
-class ConversationsPage extends StatelessWidget {
-  const ConversationsPage({super.key});
+class ConversationsPage extends StatefulWidget {
+  final User user;
+  final ServiceManager serviceManager;
+
+  const ConversationsPage({
+    super.key,
+    required this.user,
+    required this.serviceManager,
+  });
 
   static const routeName = AppRoutes.conversations;
+
+  @override
+  State<ConversationsPage> createState() => _ConversationsPageState();
+}
+
+class _ConversationsPageState extends State<ConversationsPage> {
+  Stream<List<Conversation>>? _conversationsStream;
+  bool _isLoading = false;
+  String? _error;
+  final Set<String> _deletingConversations = {};
+  bool _isSelectionMode = false;
+  final Set<String> _selectedConversations = {};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadConversations();
+    });
+  }
+
+  void _loadConversations() async {
+    // Use the user passed to the widget instead of AuthProvider
+    final currentUser = widget.user;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Use the ServiceManager provided by AuthenticatedPageWrapper
+      final serviceManager = widget.serviceManager;
+
+      // Set up real-time streaming for conversations
+      _conversationsStream =
+          serviceManager.conversationService.streamConversationsForUser(
+        currentUser.id,
+      );
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  /// Toggle selection mode
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      if (!_isSelectionMode) {
+        _selectedConversations.clear();
+      }
+    });
+  }
+
+  /// Select all conversations
+  void _selectAllConversations(List<Conversation> conversations) {
+    setState(() {
+      _selectedConversations.clear();
+      for (final conversation in conversations) {
+        _selectedConversations.add(conversation.id);
+      }
+    });
+  }
+
+  /// Deselect all conversations
+  void _deselectAllConversations() {
+    setState(() {
+      _selectedConversations.clear();
+    });
+  }
+
+  /// Toggle conversation selection
+  void _toggleConversationSelection(String conversationId) {
+    setState(() {
+      if (_selectedConversations.contains(conversationId)) {
+        _selectedConversations.remove(conversationId);
+      } else {
+        _selectedConversations.add(conversationId);
+      }
+    });
+  }
+
+  /// Delete selected conversations
+  Future<void> _deleteSelectedConversations() async {
+    if (_selectedConversations.isEmpty) return;
+
+    final confirmed = await _showBulkDeleteConfirmationDialog();
+    if (!confirmed) return;
+
+    setState(() {
+      _deletingConversations.addAll(_selectedConversations);
+    });
+
+    try {
+      await widget.serviceManager.conversationService
+          .deleteMultipleConversations(
+        _selectedConversations.toList(),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                '${_selectedConversations.length} conversation(s) deleted'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete conversations: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _deletingConversations.removeAll(_selectedConversations);
+          _selectedConversations.clear();
+          _isSelectionMode = false;
+        });
+      }
+    }
+  }
+
+  /// Show bulk delete confirmation dialog
+  Future<bool> _showBulkDeleteConfirmationDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Delete Conversations'),
+              content: Text(
+                'Are you sure you want to delete ${_selectedConversations.length} conversation(s)? '
+                'This action cannot be undone and will delete all messages.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
+                  ),
+                  child: const Text('Delete'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  /// Delete conversation with confirmation
+  Future<void> _deleteConversation(Conversation conversation) async {
+    final confirmed = await _showDeleteConfirmationDialog(conversation);
+    if (!confirmed) return;
+
+    setState(() {
+      _deletingConversations.add(conversation.id);
+    });
+
+    try {
+      await widget.serviceManager.conversationService
+          .deleteConversation(conversation.id);
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Conversation with ${conversation.participant?.name ?? 'contact'} deleted'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete conversation: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _deletingConversations.remove(conversation.id);
+        });
+      }
+    }
+  }
+
+  /// Show delete confirmation dialog
+  Future<bool> _showDeleteConfirmationDialog(Conversation conversation) async {
+    final participantName = conversation.participant?.name ??
+        conversation.participant?.displayName ??
+        conversation.participant?.email ??
+        'this contact';
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Delete Conversation'),
+              content: Text(
+                'Are you sure you want to delete your conversation with $participantName? '
+                'This action cannot be undone and will delete all messages.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
+                  ),
+                  child: const Text('Delete'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  /// Archive conversation instead of deleting
+  Future<void> _archiveConversation(Conversation conversation) async {
+    try {
+      await widget.serviceManager.conversationService.toggleConversationArchive(
+        conversation.id,
+        false, // Set to inactive (archived)
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Conversation archived'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to archive conversation: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Show conversation options menu
+  void _showConversationOptions(Conversation conversation) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.archive),
+                title: const Text('Archive Conversation'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _archiveConversation(conversation);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Delete Conversation',
+                    style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteConversation(conversation);
+                },
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Conversations'),
-        backgroundColor: Theme.of(context).primaryColor,
+        title: _isSelectionMode
+            ? Text('${_selectedConversations.length} selected')
+            : const Text('Conversations'),
+        backgroundColor: MyApp.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _toggleSelectionMode,
+              )
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
+        actions: [
+          if (_isSelectionMode) ...[
+            if (_selectedConversations.isNotEmpty) ...[
+              IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: _deleteSelectedConversations,
+                tooltip: 'Delete Selected',
+              ),
+            ],
+          ] else ...[
+            IconButton(
+              icon: const Icon(Icons.select_all),
+              onPressed: _toggleSelectionMode,
+              tooltip: 'Select Conversations',
+            ),
+          ],
+        ],
       ),
-      body: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
-          // Check if user is authenticated
-          if (!authProvider.isAuthenticated) {
-            return _buildUnauthenticatedView(context);
-          }
-
-          // Show loading state while checking auth status
-          if (authProvider.isLoading) {
-            return _buildLoadingView();
-          }
-
-          final user = authProvider.currentUser;
-
-          // Handle case where user data is not available
-          if (user == null) {
-            return _buildErrorView(context, 'Unable to load user data');
-          }
-
-          return _buildConversationsList(context, user);
-        },
-      ),
-      floatingActionButton: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
-          if (!authProvider.isAuthenticated) {
-            return const SizedBox.shrink();
-          }
-
-          return FloatingActionButton(
-            onPressed: () {
-              // TODO: Navigate to new conversation page
-            },
-            backgroundColor: Theme.of(context).primaryColor,
-            child: const Icon(Icons.chat, color: Colors.white),
-          );
-        },
-      ),
+      body: _isLoading
+          ? _buildLoadingView()
+          : _error != null
+              ? _buildErrorView(context, _error!)
+              : _buildConversationsList(context, widget.user),
+      floatingActionButton: _isSelectionMode
+          ? null
+          : FloatingActionButton(
+              onPressed: () {
+                Navigator.pushNamed(context, AppRoutes.contactSelection);
+              },
+              backgroundColor: MyApp.primaryColor,
+              child: const Icon(Icons.chat, color: Colors.white),
+            ),
+      bottomNavigationBar: _isSelectionMode ? _buildSelectionBottomBar() : null,
     );
   }
 
-  Widget _buildUnauthenticatedView(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.lock_outline,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Authentication Required',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.grey[600],
+  /// Build bottom bar for selection mode
+  Widget _buildSelectionBottomBar() {
+    return BottomAppBar(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            TextButton.icon(
+              onPressed: () {
+                // This will be implemented when we have access to conversations list
+                // For now, we'll show a placeholder
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Select all functionality will be available in the next update'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.select_all),
+              label: const Text('Select All'),
+            ),
+            const Spacer(),
+            if (_selectedConversations.isNotEmpty)
+              ElevatedButton.icon(
+                onPressed: _deleteSelectedConversations,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
                 ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Please log in to view your conversations',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[500],
-                ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () =>
-                Navigator.pushReplacementNamed(context, AppRoutes.login),
-            child: const Text('Go to Login'),
-          ),
-        ],
+                icon: const Icon(Icons.delete),
+                label: Text('Delete (${_selectedConversations.length})'),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -136,9 +468,12 @@ class ConversationsPage extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () =>
-                Navigator.pushReplacementNamed(context, AppRoutes.login),
-            child: const Text('Go to Login'),
+            onPressed: () => _loadConversations(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: MyApp.primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Retry'),
           ),
         ],
       ),
@@ -146,31 +481,80 @@ class ConversationsPage extends StatelessWidget {
   }
 
   Widget _buildConversationsList(BuildContext context, dynamic user) {
-    // TODO: Replace with real data from Firebase
-    final conversations = [
-      {
-        'name': 'John Doe',
-        'lastMessage': 'Hey, how are you?',
-        'time': '2:30 PM',
-        'unread': 2,
-        'avatar': 'J'
-      },
-      {
-        'name': 'Jane Smith',
-        'lastMessage': 'Thanks for the info!',
-        'time': '1:45 PM',
-        'unread': 0,
-        'avatar': 'J'
-      },
-      {
-        'name': 'Mike Johnson',
-        'lastMessage': 'Can we meet tomorrow?',
-        'time': '12:20 PM',
-        'unread': 1,
-        'avatar': 'M'
-      },
-    ];
+    // Use stream for real-time updates if available
+    if (_conversationsStream != null) {
+      return StreamBuilder<List<Conversation>>(
+        stream: _conversationsStream,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading conversations',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    snapshot.error.toString(),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            );
+          }
 
+          if (!snapshot.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          final conversations = snapshot.data!;
+          return _buildConversationsListView(context, conversations, user);
+        },
+      );
+    }
+
+    // Fallback to empty state
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.chat_bubble_outline,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No Conversations Yet',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.grey[600],
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Start a conversation with your contacts',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[500],
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConversationsListView(
+      BuildContext context, List<Conversation> conversations, dynamic user) {
     if (conversations.isEmpty) {
       return Center(
         child: Column(
@@ -194,74 +578,185 @@ class ConversationsPage extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey[500],
                   ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushNamed(context, AppRoutes.contactSelection);
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Start New Chat'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: MyApp.primaryColor,
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
       );
     }
 
-    return ListView.builder(
-      itemCount: conversations.length,
-      itemBuilder: (context, index) {
-        final conversation = conversations[index];
-        return _buildConversationTile(context, conversation);
+    return RefreshIndicator(
+      onRefresh: () async {
+        _loadConversations();
       },
+      child: ListView.builder(
+        itemCount: conversations.length,
+        itemBuilder: (context, index) {
+          final conversation = conversations[index];
+          return _buildConversationTile(context, conversation, user);
+        },
+      ),
     );
   }
 
   Widget _buildConversationTile(
-      BuildContext context, Map<String, dynamic> conversation) {
-    return Card(
+      BuildContext context, Conversation conversation, dynamic user) {
+    final displayName = conversation.participant?.name ??
+        conversation.participant?.displayName ??
+        conversation.participant?.email ??
+        'Unknown User';
+    final avatar = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
+    final lastMessage = conversation.lastMessage?.content ?? 'No messages yet';
+    final time = _formatTime(conversation.updatedAt);
+    final unreadCount = conversation.unreadCount;
+    final isDeleting = _deletingConversations.contains(conversation.id);
+    final isSelected = _selectedConversations.contains(conversation.id);
+
+    Widget tileContent = Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Theme.of(context).primaryColor,
-          child: Text(
-            conversation['avatar'],
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold),
+      elevation: 2,
+      child: Stack(
+        children: [
+          ListTile(
+            leading: _isSelectionMode
+                ? Checkbox(
+                    value: isSelected,
+                    onChanged: (value) {
+                      _toggleConversationSelection(conversation.id);
+                    },
+                    activeColor: MyApp.primaryColor,
+                  )
+                : CircleAvatar(
+                    backgroundColor: MyApp.primaryColor,
+                    child: Text(
+                      avatar,
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+            title: Text(displayName,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+              lastMessage,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(time,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                if (unreadCount > 0) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      unreadCount.toString(),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            onTap: _isSelectionMode
+                ? () => _toggleConversationSelection(conversation.id)
+                : () {
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.chat,
+                      arguments: {'chatId': user.id},
+                    );
+                  },
+            onLongPress: _isSelectionMode
+                ? null
+                : () {
+                    _showConversationOptions(conversation);
+                  },
           ),
-        ),
-        title: Text(conversation['name'],
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(
-          conversation['lastMessage'],
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(conversation['time'],
-                style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-            if (conversation['unread'] > 0) ...[
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor,
-                  borderRadius: BorderRadius.circular(10),
+          if (isDeleting)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
                 ),
-                child: Text(
-                  conversation['unread'].toString(),
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    // Only wrap with Dismissible if not in selection mode
+    if (!_isSelectionMode) {
+      return Dismissible(
+        key: Key(conversation.id),
+        direction: DismissDirection.endToStart,
+        confirmDismiss: (direction) async {
+          return await _showDeleteConfirmationDialog(conversation);
+        },
+        onDismissed: (direction) {
+          _deleteConversation(conversation);
+        },
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20.0),
+          color: Colors.red,
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.delete,
+                color: Colors.white,
+              ),
+              Text(
+                'Delete',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
-          ],
+          ),
         ),
-        onTap: () {
-          Navigator.pushNamed(context, AppRoutes.chat, arguments: {
-            'contactName': conversation['name'],
-            'contactAvatar': conversation['avatar'],
-            'receiverId':
-                'dummy-id-${conversation['name'].toLowerCase().replaceAll(' ', '-')}',
-          });
-        },
-      ),
-    );
+        child: tileContent,
+      );
+    }
+
+    return tileContent;
+  }
+
+  String _formatTime(DateTime timestamp) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate =
+        DateTime(timestamp.year, timestamp.month, timestamp.day);
+
+    if (messageDate == today) {
+      return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
+    } else {
+      return '${timestamp.day}/${timestamp.month} ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
+    }
   }
 }

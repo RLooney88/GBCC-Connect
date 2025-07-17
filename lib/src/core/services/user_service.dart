@@ -1,23 +1,33 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart';
-import 'firestore_service.dart';
-import 'package:flutter/foundation.dart'; // Added for debugPrint
+import '../providers/firebase_provider.dart';
 
+/// UserService
+/// Mission: Handle user profile data, user roles, settings, and CRUD operations.
+/// Responsibilities:
+/// - Create/update user profile in Firestore (after auth)
+/// - Get user data (by ID or current)
+/// - Manage user roles, preferences, profile picture, etc.
+/// - May integrate with AuthService to fetch uid
 class UserService {
   static UserService? _instance;
   static UserService get instance => _instance ??= UserService._internal();
 
   UserService._internal();
 
-  final FirestoreService _firestoreService = FirestoreService.instance;
+  FirebaseProvider? _firebaseProvider;
   static const String _collection = 'users';
+
+  /// Initialize the service with FirebaseProvider
+  Future<void> initialize(FirebaseProvider firebaseProvider) async {
+    _firebaseProvider = firebaseProvider;
+  }
 
   /// Create a new user
   Future<String> createUser(User user) async {
     try {
-      final docRef = await _firestoreService.createDocument(
-        collection: _collection,
-        data: user.toJson(),
+      final docRef = await _firebaseProvider!.createDocument(
+        _collection,
+        user.toJson(),
       );
       return docRef.id;
     } catch (e) {
@@ -28,10 +38,10 @@ class UserService {
   /// Create a user with custom ID (useful for auth users)
   Future<void> createUserWithId(String userId, User user) async {
     try {
-      await _firestoreService.createDocumentWithId(
-        collection: _collection,
-        documentId: userId,
-        data: user.toJson(),
+      await _firebaseProvider!.updateDocument(
+        _collection,
+        userId,
+        user.toJson(),
       );
     } catch (e) {
       throw Exception('Failed to create user with ID: $e');
@@ -41,30 +51,17 @@ class UserService {
   /// Get user by ID
   Future<User?> getUserById(String userId) async {
     try {
-      debugPrint('UserService: Getting user by ID: $userId');
-      final doc = await _firestoreService.getDocument(
-        collection: _collection,
-        documentId: userId,
-      );
+      final doc = await _firebaseProvider!.getDocument(_collection, userId);
 
       if (doc != null && doc.exists) {
-        debugPrint('UserService: User document found, parsing data...');
         final userData = doc.data() as Map<String, dynamic>;
-        debugPrint('UserService: User data: $userData');
-
-        final user = User.fromJson({
+        return User.fromJson({
           'id': doc.id,
           ...userData,
         });
-
-        debugPrint('UserService: User parsed successfully: ${user.name}');
-        return user;
-      } else {
-        debugPrint('UserService: User document not found or does not exist');
-        return null;
       }
+      return null;
     } catch (e) {
-      debugPrint('UserService: Error getting user by ID: $e');
       throw Exception('Failed to get user: $e');
     }
   }
@@ -72,9 +69,9 @@ class UserService {
   /// Get user by email
   Future<User?> getUserByEmail(String email) async {
     try {
-      final querySnapshot = await _firestoreService.getDocuments(
-        collection: _collection,
-        filters: [QueryFilter('email', email)],
+      final querySnapshot = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: [MapEntry('email', email)],
         limit: 1,
       );
 
@@ -94,18 +91,12 @@ class UserService {
   /// Update user
   Future<void> updateUser(String userId, User user) async {
     try {
-      debugPrint('UserService: Updating user with ID: $userId');
-      debugPrint('UserService: Update data: ${user.toJson()}');
-
-      await _firestoreService.updateDocument(
-        collection: _collection,
-        documentId: userId,
-        data: user.toJson(),
+      await _firebaseProvider!.updateDocument(
+        _collection,
+        userId,
+        user.toJson(),
       );
-
-      debugPrint('UserService: User updated successfully in Firestore');
     } catch (e) {
-      debugPrint('UserService: Error updating user: $e');
       throw Exception('Failed to update user: $e');
     }
   }
@@ -113,10 +104,7 @@ class UserService {
   /// Delete user
   Future<void> deleteUser(String userId) async {
     try {
-      await _firestoreService.deleteDocument(
-        collection: _collection,
-        documentId: userId,
-      );
+      await _firebaseProvider!.deleteDocument(_collection, userId);
     } catch (e) {
       throw Exception('Failed to delete user: $e');
     }
@@ -124,15 +112,17 @@ class UserService {
 
   /// Get all users with optional filters
   Future<List<User>> getUsers({
-    List<QueryFilter>? filters,
-    List<QueryOrder>? orders,
+    List<MapEntry<String, dynamic>>? filters,
+    String? orderBy,
+    bool descending = false,
     int? limit,
   }) async {
     try {
-      final querySnapshot = await _firestoreService.getDocuments(
-        collection: _collection,
+      final querySnapshot = await _firebaseProvider!.getDocuments(
+        _collection,
         filters: filters,
-        orders: orders,
+        orderBy: orderBy,
+        descending: descending,
         limit: limit,
       );
 
@@ -151,8 +141,8 @@ class UserService {
   Future<List<User>> getChamberMembers() async {
     try {
       return await getUsers(
-        filters: [QueryFilter('chamberMember', true)],
-        orders: [QueryOrder('name')],
+        filters: [MapEntry('chamberMember', true)],
+        orderBy: 'name',
       );
     } catch (e) {
       throw Exception('Failed to get chamber members: $e');
@@ -163,8 +153,8 @@ class UserService {
   Future<List<User>> getUsersByCompany(String company) async {
     try {
       return await getUsers(
-        filters: [QueryFilter('company', company)],
-        orders: [QueryOrder('name')],
+        filters: [MapEntry('company', company)],
+        orderBy: 'name',
       );
     } catch (e) {
       throw Exception('Failed to get users by company: $e');
@@ -174,13 +164,10 @@ class UserService {
   /// Stream user updates in real-time
   Stream<User?> streamUser(String userId) {
     try {
-      return _firestoreService
-          .streamDocument(
-        collection: _collection,
-        documentId: userId,
-      )
+      return _firebaseProvider!
+          .listenToDocument(_collection, userId)
           .map((doc) {
-        if (doc != null && doc.exists) {
+        if (doc.exists) {
           return User.fromJson({
             'id': doc.id,
             ...doc.data() as Map<String, dynamic>,
@@ -195,17 +182,18 @@ class UserService {
 
   /// Stream all users with real-time updates
   Stream<List<User>> streamUsers({
-    List<QueryFilter>? filters,
-    List<QueryOrder>? orders,
+    List<MapEntry<String, dynamic>>? filters,
+    String? orderBy,
+    bool descending = false,
     int? limit,
   }) {
     try {
-      return _firestoreService
-          .streamDocuments(
-        collection: _collection,
+      return _firebaseProvider!
+          .listenToCollection(
+        _collection,
         filters: filters,
-        orders: orders,
-        limit: limit,
+        orderBy: orderBy,
+        descending: descending,
       )
           .map((querySnapshot) {
         return querySnapshot.docs.map((doc) {
@@ -226,17 +214,7 @@ class UserService {
       // Note: Firestore doesn't support full-text search natively
       // This is a simple prefix search on name field
       // For better search, consider using Algolia or similar service
-      final querySnapshot = await _firestoreService.getDocuments(
-        collection: _collection,
-        orders: [QueryOrder('name')],
-      );
-
-      final allUsers = querySnapshot.docs.map((doc) {
-        return User.fromJson({
-          'id': doc.id,
-          ...doc.data() as Map<String, dynamic>,
-        });
-      }).toList();
+      final allUsers = await getUsers(orderBy: 'name');
 
       return allUsers.where((user) {
         final name = user.name.toLowerCase();
@@ -253,12 +231,12 @@ class UserService {
   /// Update user status
   Future<void> updateUserStatus(String userId, String status) async {
     try {
-      await _firestoreService.updateDocument(
-        collection: _collection,
-        documentId: userId,
-        data: {
+      await _firebaseProvider!.updateDocument(
+        _collection,
+        userId,
+        {
           'status': status,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': DateTime.now().toIso8601String(),
         },
       );
     } catch (e) {
@@ -270,16 +248,29 @@ class UserService {
   Future<void> updateUserProfile(
       String userId, Map<String, dynamic> profileData) async {
     try {
-      await _firestoreService.updateDocument(
-        collection: _collection,
-        documentId: userId,
-        data: {
+      await _firebaseProvider!.updateDocument(
+        _collection,
+        userId,
+        {
           ...profileData,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': DateTime.now().toIso8601String(),
         },
       );
     } catch (e) {
       throw Exception('Failed to update user profile: $e');
     }
+  }
+
+  /// Get current user from Firebase Auth
+  String? getCurrentUserId() {
+    final firebaseUser = _firebaseProvider!.getCurrentFirebaseUser();
+    return firebaseUser?.uid;
+  }
+
+  /// Get current user profile
+  Future<User?> getCurrentUser() async {
+    final userId = getCurrentUserId();
+    if (userId == null) return null;
+    return await getUserById(userId);
   }
 }

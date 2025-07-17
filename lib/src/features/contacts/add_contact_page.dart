@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../core/providers/firebase_provider.dart';
-import '../../core/providers/auth_provider.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../core/models/contact.dart';
+import '../../core/models/user.dart';
+import '../../core/services/service_manager.dart';
+import '../../app.dart';
 
 class AddContactPage extends StatefulWidget {
-  const AddContactPage({super.key});
+  final User user;
+  final ServiceManager serviceManager;
+
+  const AddContactPage({
+    super.key,
+    required this.user,
+    required this.serviceManager,
+  });
 
   static const routeName = '/add-contact';
 
@@ -23,16 +31,14 @@ class _AddContactPageState extends State<AddContactPage> {
   final _websiteController = TextEditingController();
   final _notesController = TextEditingController();
 
-  bool _isLoading = false;
+  // Social media controllers
+  final _instagramController = TextEditingController();
+  final _facebookController = TextEditingController();
+  final _youtubeController = TextEditingController();
+  final _linkedinController = TextEditingController();
+  final _pinterestController = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    // Initialize Firebase provider when the page loads
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<FirebaseProvider>().initialize();
-    });
-  }
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -43,6 +49,14 @@ class _AddContactPageState extends State<AddContactPage> {
     _companyController.dispose();
     _websiteController.dispose();
     _notesController.dispose();
+
+    // Dispose social media controllers
+    _instagramController.dispose();
+    _facebookController.dispose();
+    _youtubeController.dispose();
+    _linkedinController.dispose();
+    _pinterestController.dispose();
+
     super.dispose();
   }
 
@@ -51,7 +65,7 @@ class _AddContactPageState extends State<AddContactPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Contact'),
-        backgroundColor: Theme.of(context).primaryColor,
+        backgroundColor: MyApp.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -78,81 +92,11 @@ class _AddContactPageState extends State<AddContactPage> {
           ),
         ],
       ),
-      body: Consumer2<AuthProvider, FirebaseProvider>(
-        builder: (context, authProvider, firebaseProvider, child) {
-          // Check if user is authenticated
-          if (!authProvider.isAuthenticated) {
-            return _buildUnauthenticatedView(context);
-          }
-
-          // Show loading state while checking auth status
-          if (authProvider.isLoading) {
-            return _buildLoadingView();
-          }
-
-          final user = authProvider.currentUser;
-
-          // Handle case where user data is not available
-          if (user == null) {
-            return _buildErrorView(context, 'Unable to load user data');
-          }
-
-          return _buildAddContactForm(context, authProvider, firebaseProvider);
-        },
-      ),
+      body: _buildAddContactForm(context),
     );
   }
 
-  Widget _buildUnauthenticatedView(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text(
-            'You must be logged in to add a contact.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 18),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: 200,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/login');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Login'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoadingView() {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
-  }
-
-  Widget _buildErrorView(BuildContext context, String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 18, color: Colors.red),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAddContactForm(BuildContext context, AuthProvider authProvider,
-      FirebaseProvider firebaseProvider) {
+  Widget _buildAddContactForm(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Form(
@@ -166,7 +110,7 @@ class _AddContactPageState extends State<AddContactPage> {
                 children: [
                   CircleAvatar(
                     radius: 50,
-                    backgroundColor: Theme.of(context).primaryColor,
+                    backgroundColor: MyApp.primaryColor,
                     child: const Icon(
                       Icons.person_add,
                       size: 50,
@@ -300,7 +244,142 @@ class _AddContactPageState extends State<AddContactPage> {
                 return null;
               },
             ),
+            const SizedBox(height: 24),
+
+            // Social Media Links Section
+            const Text(
+              'Social Media Links',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 16),
+
+            // Instagram Field
+            TextFormField(
+              controller: _instagramController,
+              decoration: const InputDecoration(
+                labelText: 'Instagram',
+                border: OutlineInputBorder(),
+                prefixIcon:
+                    Icon(FontAwesomeIcons.instagram, color: Color(0xFFE4405F)),
+                hintText: 'https://instagram.com/username',
+              ),
+              keyboardType: TextInputType.url,
+              validator: (value) {
+                if (value != null && value.trim().isNotEmpty) {
+                  final instagramPattern = RegExp(
+                    r'^https?:\/\/(www\.)?(instagram\.com|instagr\.am)\/[a-zA-Z0-9._]+\/?$',
+                  );
+                  if (!instagramPattern.hasMatch(value.trim())) {
+                    return 'Please enter a valid Instagram URL';
+                  }
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Facebook Field
+            TextFormField(
+              controller: _facebookController,
+              decoration: const InputDecoration(
+                labelText: 'Facebook',
+                border: OutlineInputBorder(),
+                prefixIcon:
+                    Icon(FontAwesomeIcons.facebook, color: Color(0xFF1877F2)),
+                hintText: 'https://facebook.com/username',
+              ),
+              keyboardType: TextInputType.url,
+              validator: (value) {
+                if (value != null && value.trim().isNotEmpty) {
+                  final facebookPattern = RegExp(
+                    r'^https?:\/\/(www\.)?(facebook\.com|fb\.com)\/[a-zA-Z0-9._]+\/?$',
+                  );
+                  if (!facebookPattern.hasMatch(value.trim())) {
+                    return 'Please enter a valid Facebook URL';
+                  }
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // LinkedIn Field
+            TextFormField(
+              controller: _linkedinController,
+              decoration: const InputDecoration(
+                labelText: 'LinkedIn',
+                border: OutlineInputBorder(),
+                prefixIcon:
+                    Icon(FontAwesomeIcons.linkedin, color: Color(0xFF0A66C2)),
+                hintText: 'https://linkedin.com/in/username',
+              ),
+              keyboardType: TextInputType.url,
+              validator: (value) {
+                if (value != null && value.trim().isNotEmpty) {
+                  final linkedinPattern = RegExp(
+                    r'^https?:\/\/(www\.)?(linkedin\.com\/in|linkedin\.com\/company)\/[a-zA-Z0-9._-]+\/?$',
+                  );
+                  if (!linkedinPattern.hasMatch(value.trim())) {
+                    return 'Please enter a valid LinkedIn URL';
+                  }
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // YouTube Field
+            TextFormField(
+              controller: _youtubeController,
+              decoration: const InputDecoration(
+                labelText: 'YouTube',
+                border: OutlineInputBorder(),
+                prefixIcon:
+                    Icon(FontAwesomeIcons.youtube, color: Color(0xFFFF0000)),
+                hintText: 'https://youtube.com/@channel',
+              ),
+              keyboardType: TextInputType.url,
+              validator: (value) {
+                if (value != null && value.trim().isNotEmpty) {
+                  final youtubePattern = RegExp(
+                    r'^https?:\/\/(www\.)?(youtube\.com\/(@|channel\/|c\/)|youtu\.be\/)[a-zA-Z0-9._-]+\/?$',
+                  );
+                  if (!youtubePattern.hasMatch(value.trim())) {
+                    return 'Please enter a valid YouTube URL';
+                  }
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Pinterest Field
+            TextFormField(
+              controller: _pinterestController,
+              decoration: const InputDecoration(
+                labelText: 'Pinterest',
+                border: OutlineInputBorder(),
+                prefixIcon:
+                    Icon(FontAwesomeIcons.pinterest, color: Color(0xFFBD081C)),
+                hintText: 'https://pinterest.com/username',
+              ),
+              keyboardType: TextInputType.url,
+              validator: (value) {
+                if (value != null && value.trim().isNotEmpty) {
+                  final pinterestPattern = RegExp(
+                    r'^https?:\/\/(www\.)?pinterest\.com\/[a-zA-Z0-9._]+\/?$',
+                  );
+                  if (!pinterestPattern.hasMatch(value.trim())) {
+                    return 'Please enter a valid Pinterest URL';
+                  }
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 24),
 
             // Notes Section
             const Text(
@@ -331,7 +410,7 @@ class _AddContactPageState extends State<AddContactPage> {
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _saveContact,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
+                  backgroundColor: MyApp.primaryColor,
                   foregroundColor: Colors.white,
                 ),
                 child: _isLoading
@@ -367,14 +446,10 @@ class _AddContactPageState extends State<AddContactPage> {
     });
 
     try {
-      final firebaseProvider = context.read<FirebaseProvider>();
-      final authProvider = context.read<AuthProvider>();
-      final currentUser = authProvider.currentUser;
+      final currentUser = widget.user;
 
-      if (currentUser == null) {
-        _showErrorSnackBar('User not authenticated. Please log in again.');
-        return;
-      }
+      // Use the ServiceManager provided by AuthenticatedPageWrapper
+      final serviceManager = widget.serviceManager;
 
       // Create the contact object
       final contact = Contact(
@@ -399,6 +474,21 @@ class _AddContactPageState extends State<AddContactPage> {
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
+        instagram: _instagramController.text.trim().isEmpty
+            ? null
+            : _instagramController.text.trim(),
+        facebook: _facebookController.text.trim().isEmpty
+            ? null
+            : _facebookController.text.trim(),
+        youtube: _youtubeController.text.trim().isEmpty
+            ? null
+            : _youtubeController.text.trim(),
+        linkedin: _linkedinController.text.trim().isEmpty
+            ? null
+            : _linkedinController.text.trim(),
+        pinterest: _pinterestController.text.trim().isEmpty
+            ? null
+            : _pinterestController.text.trim(),
         isFavorite: false,
         isBlocked: false,
         chamberMember: false,
@@ -406,8 +496,8 @@ class _AddContactPageState extends State<AddContactPage> {
         updatedAt: DateTime.now(),
       );
 
-      // Save the contact using Firebase
-      await firebaseProvider.createContact(contact);
+      // Save the contact using ServiceManager
+      await serviceManager.contactService.createContact(contact);
 
       if (mounted) {
         _showSuccessSnackBar('Contact saved successfully!');

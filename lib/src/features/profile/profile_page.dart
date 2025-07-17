@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/models/user.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/services/service_manager.dart';
 import '../../core/routes/app_routes.dart';
+import '../../app.dart';
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  final User user;
+  final ServiceManager serviceManager;
+
+  const ProfilePage({
+    super.key,
+    required this.user,
+    required this.serviceManager,
+  });
 
   static const routeName = AppRoutes.profile;
 
@@ -13,7 +23,7 @@ class ProfilePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
-        backgroundColor: Theme.of(context).primaryColor,
+        backgroundColor: MyApp.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -21,261 +31,162 @@ class ProfilePage extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
-          // Check if user is authenticated
-          if (!authProvider.isAuthenticated) {
-            return _buildUnauthenticatedView(context);
-          }
-
-          // Show loading state while checking auth status
-          if (authProvider.isLoading) {
-            return _buildLoadingView();
-          }
-
-          final user = authProvider.currentUser;
-
-          // Handle case where user data is not available
-          if (user == null) {
-            return _buildErrorView(context, 'Unable to load user data');
-          }
-
-          return _buildProfileContent(context, authProvider, user);
-        },
-      ),
+      body: _buildProfileContent(context),
     );
   }
 
-  Widget _buildUnauthenticatedView(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.lock_outline,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Authentication Required',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.grey[600],
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Please log in to view your profile',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[500],
-                ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () =>
-                Navigator.pushReplacementNamed(context, AppRoutes.login),
-            child: const Text('Go to Login'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoadingView() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Loading profile...'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorView(BuildContext context, String message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.red[300],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Error',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.red[600],
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () =>
-                Navigator.pushReplacementNamed(context, AppRoutes.login),
-            child: const Text('Back to Login'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileContent(
-      BuildContext context, AuthProvider authProvider, dynamic user) {
+  Widget _buildProfileContent(BuildContext context) {
     return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Profile Header
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Theme.of(context).primaryColor,
-                  Theme.of(context).primaryColor.withOpacity(0.8),
-                ],
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.white,
-                    child: Text(
-                      _getUserInitial(user),
-                      style: TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    user.name ?? 'User',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  if (user.email != null && user.email.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      user.email,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
+          _buildProfileHeader(context),
+          const SizedBox(height: 24),
 
-          // Profile Options
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                _buildProfileOption(
-                  context,
-                  'Edit Profile',
-                  Icons.edit,
-                  () {
-                    Navigator.pushNamed(context, AppRoutes.editProfile);
-                  },
+          // Profile Actions
+          _buildProfileActions(context),
+          const SizedBox(height: 24),
+
+          // Account Settings
+          _buildAccountSettings(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: MyApp.primaryColor.withOpacity(0.1),
+              child: Text(
+                user.displayName?.substring(0, 1).toUpperCase() ?? 'U',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: MyApp.primaryColor,
                 ),
-                _buildProfileOption(
-                  context,
-                  'Settings',
-                  Icons.settings,
-                  () => Navigator.pushNamed(context, AppRoutes.settings),
-                ),
-                _buildProfileOption(
-                  context,
-                  'Help & Support',
-                  Icons.help_outline,
-                  () {
-                    // TODO: Navigate to help page
-                  },
-                ),
-                _buildProfileOption(
-                  context,
-                  'About',
-                  Icons.info_outline,
-                  () {
-                    // TODO: Navigate to about page
-                  },
-                ),
-                const SizedBox(height: 24),
-                _buildProfileOption(
-                  context,
-                  'Logout',
-                  Icons.logout,
-                  () async {
-                    await authProvider.logout();
-                    if (context.mounted) {
-                      Navigator.of(context)
-                          .pushReplacementNamed(AppRoutes.login);
-                    }
-                  },
-                  isDestructive: true,
-                ),
-              ],
+              ),
             ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user.name ?? user.displayName ?? 'Unknown User',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user.email ?? 'No email',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                  )
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileActions(BuildContext context) {
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.edit),
+            title: const Text('Edit Profile'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.editProfile),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.qr_code),
+            title: const Text('My QR Code'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.qrCode),
           ),
         ],
       ),
     );
   }
 
-  String _getUserInitial(dynamic user) {
-    if (user.name == null || user.name.isEmpty) {
-      return 'U';
-    }
-    return user.name.substring(0, 1).toUpperCase();
-  }
-
-  Widget _buildProfileOption(
-    BuildContext context,
-    String title,
-    IconData icon,
-    VoidCallback onTap, {
-    bool isDestructive = false,
-  }) {
+  Widget _buildAccountSettings(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isDestructive ? Colors.red : Theme.of(context).primaryColor,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isDestructive ? Colors.red : null,
-            fontWeight: FontWeight.w500,
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.settings),
+            title: const Text('Settings'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.settings),
           ),
-        ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: onTap,
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+            onTap: () => _showSignOutDialog(context),
+          ),
+        ],
       ),
     );
+  }
+
+  void _showSignOutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Sign Out'),
+          content: const Text('Are you sure you want to sign out?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _signOut(context);
+              },
+              child:
+                  const Text('Sign Out', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _signOut(BuildContext context) async {
+    try {
+      // Simple sign out - just navigate to login page
+      context.read<AuthProvider>().logout();
+      // The actual logout logic should be handled by the parent widget or service
+      if (context.mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoutes.login,
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error signing out: $e')),
+        );
+      }
+    }
   }
 }

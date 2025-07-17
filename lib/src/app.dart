@@ -88,6 +88,54 @@ class MyApp extends StatelessWidget {
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
             ),
+            // Custom TextField theme for light mode
+            inputDecorationTheme: InputDecorationTheme(
+              filled: true,
+              fillColor: Colors.grey[50],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: primaryColor, width: 2),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.red[300]!, width: 1),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.red[300]!, width: 2),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+              hintStyle: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 16,
+              ),
+              labelStyle: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 16,
+              ),
+              floatingLabelStyle: const TextStyle(
+                color: primaryColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            // Text selection theme
+            textSelectionTheme: TextSelectionThemeData(
+              cursorColor: primaryColor,
+              selectionColor: Color(0x1A00a6bb),
+              selectionHandleColor: primaryColor,
+            ),
           ),
           darkTheme: ThemeData.dark().copyWith(
             primaryColor: primaryColor,
@@ -106,6 +154,58 @@ class MyApp extends StatelessWidget {
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
             ),
+            // Custom TextField theme for dark mode
+            inputDecorationTheme: InputDecorationTheme(
+              filled: true,
+              fillColor: Colors.grey[850],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[600]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[600]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: primaryColor, width: 2),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.red[300]!, width: 1),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.red[300]!, width: 2),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+              hintStyle: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 16,
+              ),
+              labelStyle: TextStyle(
+                color: Colors.grey[300],
+                fontSize: 16,
+              ),
+              floatingLabelStyle: const TextStyle(
+                color: primaryColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            // Text selection theme for dark mode
+            textSelectionTheme: TextSelectionThemeData(
+              cursorColor: primaryColor,
+              selectionColor: Color(0x1A00a6bb),
+              selectionHandleColor: primaryColor,
+            ),
+            indicatorColor: primaryColor,
+            progressIndicatorTheme: const ProgressIndicatorThemeData(
+              color: primaryColor,
+            ),
           ),
           themeMode: settingsController.themeMode,
 
@@ -123,7 +223,7 @@ class MyApp extends StatelessWidget {
           },
 
           // Set initial route
-          initialRoute: AppRoutes.login,
+          initialRoute: '/splash',
         );
       },
     );
