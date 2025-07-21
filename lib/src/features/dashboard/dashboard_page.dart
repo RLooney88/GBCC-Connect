@@ -183,6 +183,7 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   Widget _buildWelcomeSection(User user) {
+    final displayName = user.displayName ?? user.name ?? 'Unknown User';
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -202,7 +203,7 @@ class _DashboardPageState extends State<DashboardPage>
                 radius: 30,
                 backgroundColor: Colors.white,
                 child: Text(
-                  user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                  displayName.isNotEmpty ? displayName[0].toUpperCase() : '',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -223,7 +224,7 @@ class _DashboardPageState extends State<DashboardPage>
                       ),
                     ),
                     Text(
-                      user.name,
+                      displayName,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 24,

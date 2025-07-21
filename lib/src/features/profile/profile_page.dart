@@ -57,6 +57,7 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _buildProfileHeader(BuildContext context) {
+    final displayName = user.displayName ?? user.name ?? 'Unknown User';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -66,7 +67,7 @@ class ProfilePage extends StatelessWidget {
               radius: 40,
               backgroundColor: MyApp.primaryColor.withOpacity(0.1),
               child: Text(
-                user.displayName?.substring(0, 1).toUpperCase() ?? 'U',
+                displayName.substring(0, 1).toUpperCase(),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -80,7 +81,7 @@ class ProfilePage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    user.name ?? user.displayName ?? 'Unknown User',
+                    displayName,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),

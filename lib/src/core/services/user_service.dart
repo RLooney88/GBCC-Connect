@@ -217,7 +217,7 @@ class UserService {
       final allUsers = await getUsers(orderBy: 'name');
 
       return allUsers.where((user) {
-        final name = user.name.toLowerCase();
+        final name = user.name?.toLowerCase() ?? '';
         final email = user.email.toLowerCase();
         final search = searchTerm.toLowerCase();
 

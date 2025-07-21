@@ -3,6 +3,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../core/models/contact.dart';
 import '../../core/models/user.dart';
 import '../../core/services/service_manager.dart';
+import '../../core/services/ocr_service.dart';
+import 'business_card_scanner_page.dart';
 import '../../app.dart';
 
 class AddContactPage extends StatefulWidget {
@@ -186,6 +188,22 @@ class _AddContactPageState extends State<AddContactPage> {
                 prefixIcon: Icon(Icons.phone),
               ),
               keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 16),
+
+            // Scan Business Card Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _scanBusinessCard,
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Scan Business Card'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -434,6 +452,66 @@ class _AddContactPageState extends State<AddContactPage> {
         ),
       ),
     );
+  }
+
+  /// Scan business card and extract contact information
+  Future<void> _scanBusinessCard() async {
+    try {
+      final result = await Navigator.push<BusinessCardData>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BusinessCardScannerPage(
+            onDataExtracted: _populateFormWithScannedData,
+          ),
+        ),
+      );
+
+      if (result != null) {
+        _populateFormWithScannedData(result);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackBar('Failed to scan business card: $e');
+      }
+    }
+  }
+
+  /// Populate form fields with scanned business card data
+  void _populateFormWithScannedData(BusinessCardData data) {
+    setState(() {
+      if (data.name.isNotEmpty) _nameController.text = data.name;
+      if (data.email.isNotEmpty) _emailController.text = data.email;
+      if (data.phone.isNotEmpty) _phoneController.text = data.phone;
+      if (data.company.isNotEmpty) _companyController.text = data.company;
+      if (data.position.isNotEmpty) _positionController.text = data.position;
+      if (data.website.isNotEmpty) _websiteController.text = data.website;
+
+      // Populate social media fields
+      if (data.linkedinUrl != null && data.linkedinUrl!.isNotEmpty) {
+        _linkedinController.text = data.linkedinUrl!;
+      }
+      if (data.facebookUrl != null && data.facebookUrl!.isNotEmpty) {
+        _facebookController.text = data.facebookUrl!;
+      }
+      if (data.instagramUrl != null && data.instagramUrl!.isNotEmpty) {
+        _instagramController.text = data.instagramUrl!;
+      }
+      if (data.youtubeUrl != null && data.youtubeUrl!.isNotEmpty) {
+        _youtubeController.text = data.youtubeUrl!;
+      }
+      if (data.pinterestUrl != null && data.pinterestUrl!.isNotEmpty) {
+        _pinterestController.text = data.pinterestUrl!;
+      }
+
+      // Add raw text to notes if no other data was extracted
+      if (data.rawText.isNotEmpty && !data.hasData) {
+        _notesController.text = 'Raw OCR text:\n${data.rawText}';
+      }
+    });
+
+    if (mounted) {
+      _showSuccessSnackBar('Contact information extracted successfully!');
+    }
   }
 
   Future<void> _saveContact() async {

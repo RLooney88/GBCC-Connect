@@ -39,6 +39,7 @@ class _QRCodePageState extends State<QRCodePage> {
   }
 
   Widget _buildQRCodeContent(BuildContext context, dynamic user) {
+    final displayName = user.displayName ?? user.name ?? 'Unknown User';
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -66,7 +67,7 @@ class _QRCodePageState extends State<QRCodePage> {
                   radius: 40,
                   backgroundColor: MyApp.primaryColor.withOpacity(0.3),
                   child: Text(
-                    user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                    displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -76,7 +77,7 @@ class _QRCodePageState extends State<QRCodePage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  user.name ?? 'User',
+                  displayName,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

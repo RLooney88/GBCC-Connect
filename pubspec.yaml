@@ -28,6 +28,19 @@ dependencies:
   image_picker: ^1.0.4
   cached_network_image: ^3.3.0
 
+  # OCR for Business Card Scanning
+  google_mlkit_text_recognition: ^0.11.0
+
+  # Image Processing for OCR
+  image: ^4.1.7
+
+  # Path utilities
+  path_provider: ^2.1.2
+  path: ^1.9.0
+
+  # OpenAI Integration for AI-enhanced parsing
+  dio: ^5.4.0
+
   # Firebase Core
   firebase_core: ^3.0.0
 

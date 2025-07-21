@@ -78,7 +78,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (!mounted) return;
 
     setState(() {
-      _nameController.text = user.name;
+      _nameController.text = user.name ?? '';
       _emailController.text = user.email;
       _phoneController.text = user.phone ?? '';
       _displayNameController.text = user.displayName ?? '';

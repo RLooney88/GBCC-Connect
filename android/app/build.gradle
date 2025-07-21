@@ -18,6 +18,9 @@ dependencies {
   implementation 'com.google.firebase:firebase-analytics'
   implementation 'com.google.firebase:firebase-firestore'
 
+  // ML Kit Text Recognition
+  implementation 'com.google.mlkit:text-recognition:16.0.0'
+
   // Add the dependencies for any other desired Firebase products
   // https://firebase.google.com/docs/android/setup#available-libraries
 }
