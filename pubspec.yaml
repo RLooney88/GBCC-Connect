@@ -1,0 +1,102 @@
+name: gbcc_connect_app
+description: "A new Flutter project."
+
+# Prevent accidental publishing to pub.dev.
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.3 # >=3.0.0 <4.0.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  provider: ^6.1.1
+
+  # Local Storage
+  shared_preferences: ^2.2.2
+
+  # HTTP Client
+  http: ^1.1.0
+
+  # Image Handling
+  image_picker: ^1.0.4
+  cached_network_image: ^3.3.0
+
+  # Firebase Core
+  firebase_core: ^3.0.0
+
+  # Firebase Authentication
+  firebase_auth: ^5.0.0
+
+  # Google Sign-In
+  google_sign_in: ^6.1.6
+
+  # Apple Sign-In
+  sign_in_with_apple: ^7.0.1
+
+  # Cloud Firestore
+  cloud_firestore: ^5.0.0
+
+  # Firebase Storage
+  firebase_storage: ^12.0.0
+
+  # Firebase Analytics
+  firebase_analytics: ^11.0.0
+
+  # Firebase Crashlytics
+  firebase_crashlytics: ^4.0.0
+
+  # Firebase Performance
+  firebase_performance: ^0.10.0
+
+  # Firebase Remote Config
+  firebase_remote_config: ^5.0.0
+
+  # Firebase Cloud Messaging
+  firebase_messaging: ^15.0.0
+
+  # Firebase Functions
+  cloud_functions: ^5.0.0
+
+  # Environment Configuration
+  flutter_dotenv: ^5.1.0
+
+  # Secure Storage
+  flutter_secure_storage: ^9.0.0
+
+  # Network Connectivity
+  connectivity_plus: ^6.1.4
+
+  # Device Info
+  device_info_plus: ^11.3.0
+
+  # URL Launcher
+  url_launcher: ^6.2.4
+
+  # Icons
+  font_awesome_flutter: ^10.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  mockito: ^5.4.4
+  build_runner: ^2.4.8
+
+flutter:
+  uses-material-design: true
+
+  # Enable generation of localized Strings from arb files.
+  generate: true
+
+  assets:
+    # Add assets from the images directory to the application.
+    - assets/images/
+    # Environment files
+    - .env
