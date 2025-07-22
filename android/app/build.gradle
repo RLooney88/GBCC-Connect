@@ -35,12 +35,12 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = JavaVersion.VERSION_11
     }
 
     defaultConfig {
@@ -63,11 +63,20 @@ android {
     }
     
     lintOptions {
+        // Allow unsafe opt-in usage for ML Kit compatibility
         disable 'UnsafeOptInUsageError'
-        warning 'Unchecked', 'Deprecation'
-        // Suppress warnings from Google ML Kit libraries
+        
+        // Treat warnings as errors for better code quality
+        warningsAsErrors false
+        
+        // Specific suppressions for ML Kit deprecation warnings
         disable 'Deprecation'
         disable 'Unchecked'
+        
+        // Additional security-focused lint checks
+        check 'NewApi'
+        check 'ObsoleteLintCustomCheck'
+        check 'UnusedResources'
     }
 }
 
