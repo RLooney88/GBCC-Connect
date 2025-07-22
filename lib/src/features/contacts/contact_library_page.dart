@@ -550,7 +550,14 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (contact.email.isNotEmpty) Text(contact.email),
+            if (contact.email.isNotEmpty)
+              Text(
+                contact.email,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
           ],
         ),
         trailing: _isSelectionMode

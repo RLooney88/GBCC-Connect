@@ -154,6 +154,10 @@ class MyApp extends StatelessWidget {
               ),
               materialTapTargetSize: MaterialTapTargetSize.padded,
             ),
+            // Progress indicator theme for light mode
+            progressIndicatorTheme: const ProgressIndicatorThemeData(
+              color: primaryColor,
+            ),
           ),
           darkTheme: ThemeData.dark().copyWith(
             primaryColor: primaryColor,
