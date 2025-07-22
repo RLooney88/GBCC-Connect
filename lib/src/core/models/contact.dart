@@ -1,3 +1,5 @@
+import 'package:gbcc_connect_app/src/core/constants/constants.dart';
+
 import 'user.dart';
 
 class Contact {
@@ -57,7 +59,7 @@ class Contact {
         // Create a minimal user object if owner data is missing
         owner = User(
           id: json['ownerId'] ?? '',
-          name: 'Unknown User',
+          name: AppConstants.defaultDisplayName,
           email: '',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
@@ -67,7 +69,7 @@ class Contact {
       // Fallback user object if parsing fails
       owner = User(
         id: json['ownerId'] ?? '',
-        name: 'Unknown User',
+        name: AppConstants.defaultDisplayName,
         email: '',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),

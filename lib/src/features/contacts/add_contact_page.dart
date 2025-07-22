@@ -4,17 +4,24 @@ import '../../core/models/contact.dart';
 import '../../core/models/user.dart';
 import '../../core/services/service_manager.dart';
 import '../../core/services/ocr_service.dart';
+import '../../core/routes/app_routes.dart';
 import 'business_card_scanner_page.dart';
 import '../../app.dart';
 
 class AddContactPage extends StatefulWidget {
   final User user;
   final ServiceManager serviceManager;
+  final String? preFilledName;
+  final String? preFilledEmail;
+  final String? returnToChatId; // To return to chat after adding contact
 
   const AddContactPage({
     super.key,
     required this.user,
     required this.serviceManager,
+    this.preFilledName,
+    this.preFilledEmail,
+    this.returnToChatId,
   });
 
   static const routeName = '/add-contact';
@@ -60,6 +67,17 @@ class _AddContactPageState extends State<AddContactPage> {
     _pinterestController.dispose();
 
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.preFilledName != null) {
+      _nameController.text = widget.preFilledName!;
+    }
+    if (widget.preFilledEmail != null) {
+      _emailController.text = widget.preFilledEmail!;
+    }
   }
 
   @override
@@ -168,11 +186,12 @@ class _AddContactPageState extends State<AddContactPage> {
               ),
               keyboardType: TextInputType.emailAddress,
               validator: (value) {
-                if (value != null && value.trim().isNotEmpty) {
-                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                      .hasMatch(value.trim())) {
-                    return 'Please enter a valid email';
-                  }
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter an email address';
+                }
+                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                    .hasMatch(value.trim())) {
+                  return 'Please enter a valid email';
                 }
                 return null;
               },
@@ -525,9 +544,24 @@ class _AddContactPageState extends State<AddContactPage> {
 
     try {
       final currentUser = widget.user;
-
-      // Use the ServiceManager provided by AuthenticatedPageWrapper
       final serviceManager = widget.serviceManager;
+      final email = _emailController.text.trim();
+
+      // Check for duplicate email
+      final isDuplicate = await serviceManager.contactService.isEmailDuplicate(
+        currentUser.id,
+        email,
+      );
+
+      if (isDuplicate) {
+        if (mounted) {
+          _showErrorSnackBar('A contact with this email already exists.');
+          setState(() {
+            _isLoading = false;
+          });
+        }
+        return;
+      }
 
       // Create the contact object
       final contact = Contact(
@@ -536,7 +570,7 @@ class _AddContactPageState extends State<AddContactPage> {
         owner: currentUser,
         name: _nameController.text.trim(),
         displayName: _nameController.text.trim(),
-        email: _emailController.text.trim(),
+        email: email,
         phone: _phoneController.text.trim().isEmpty
             ? null
             : _phoneController.text.trim(),
@@ -579,7 +613,17 @@ class _AddContactPageState extends State<AddContactPage> {
 
       if (mounted) {
         _showSuccessSnackBar('Contact saved successfully!');
-        Navigator.pop(context);
+
+        // If we have a returnToChatId, navigate back to chat with the new contact
+        if (widget.returnToChatId != null) {
+          Navigator.pushReplacementNamed(
+            context,
+            AppRoutes.chat,
+            arguments: {'chatId': widget.returnToChatId},
+          );
+        } else {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -1,3 +1,5 @@
+import 'package:gbcc_connect_app/src/core/constants/constants.dart';
+
 import 'user.dart';
 import 'message.dart';
 
@@ -207,6 +209,8 @@ class Conversation {
   /// Get conversation display name for a user
   String getDisplayName(String currentUserId) {
     final otherUser = getOtherUser(currentUserId);
-    return otherUser?.displayName ?? otherUser?.email ?? 'Unknown User';
+    return otherUser?.displayName ??
+        otherUser?.email ??
+        AppConstants.defaultDisplayName;
   }
 }

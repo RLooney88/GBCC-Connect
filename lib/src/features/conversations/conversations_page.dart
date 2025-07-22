@@ -4,7 +4,6 @@ import '../../core/services/service_manager.dart';
 import '../../core/models/conversation.dart';
 import '../../core/routes/app_routes.dart';
 import '../../app.dart';
-import '../../core/models/contact.dart';
 
 class ConversationsPage extends StatefulWidget {
   final User user;
@@ -29,7 +28,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
   final Set<String> _deletingConversations = {};
   bool _isSelectionMode = false;
   final Set<String> _selectedConversations = {};
-  Map<String, bool> _participantRegistrationStatus = {};
+  List<Conversation> _currentConversations =
+      []; // Add this field to track current conversations
 
   @override
   void initState() {
@@ -81,10 +81,10 @@ class _ConversationsPageState extends State<ConversationsPage> {
   }
 
   /// Select all conversations
-  void _selectAllConversations(List<Conversation> conversations) {
+  void _selectAllConversations() {
     setState(() {
       _selectedConversations.clear();
-      for (final conversation in conversations) {
+      for (final conversation in _currentConversations) {
         _selectedConversations.add(conversation.id);
       }
     });
@@ -95,6 +95,15 @@ class _ConversationsPageState extends State<ConversationsPage> {
     setState(() {
       _selectedConversations.clear();
     });
+  }
+
+  /// Toggle between select all and deselect all
+  void _toggleSelectAll() {
+    if (_selectedConversations.length == _currentConversations.length) {
+      _deselectAllConversations();
+    } else {
+      _selectAllConversations();
+    }
   }
 
   /// Toggle conversation selection
@@ -201,10 +210,10 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
       // Show success message
       if (mounted) {
+        final otherUserName = conversation.getDisplayName(widget.user.id);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Conversation with ${conversation.participant?.name ?? 'contact'} deleted'),
+            content: Text('Conversation with $otherUserName deleted'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -232,10 +241,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   /// Show delete confirmation dialog
   Future<bool> _showDeleteConfirmationDialog(Conversation conversation) async {
-    final participantName = conversation.participant?.name ??
-        conversation.participant?.displayName ??
-        conversation.participant?.email ??
-        'this contact';
+    final otherUserName = conversation.getDisplayName(widget.user.id);
 
     return await showDialog<bool>(
           context: context,
@@ -243,7 +249,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
             return AlertDialog(
               title: const Text('Delete Conversation'),
               content: Text(
-                'Are you sure you want to delete your conversation with $participantName? '
+                'Are you sure you want to delete your conversation with $otherUserName? '
                 'This action cannot be undone and will delete all messages.',
               ),
               actions: [
@@ -339,10 +345,15 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isAllSelected = _currentConversations.isNotEmpty &&
+        _selectedConversations.length == _currentConversations.length;
+
     return Scaffold(
       appBar: AppBar(
         title: _isSelectionMode
-            ? Text('${_selectedConversations.length} selected')
+            ? Text(isAllSelected
+                ? 'All conversations selected'
+                : '${_selectedConversations.length} selected')
             : const Text('Conversations'),
         backgroundColor: MyApp.primaryColor,
         foregroundColor: Colors.white,
@@ -374,11 +385,14 @@ class _ConversationsPageState extends State<ConversationsPage> {
           ],
         ],
       ),
-      body: _isLoading
-          ? _buildLoadingView()
-          : _error != null
-              ? _buildErrorView(context, _error!)
-              : _buildConversationsList(context, widget.user),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: _isLoading
+            ? _buildLoadingView()
+            : _error != null
+                ? _buildErrorView(context, _error!)
+                : _buildConversationsList(context, widget.user),
+      ),
       floatingActionButton: _isSelectionMode
           ? null
           : FloatingActionButton(
@@ -394,25 +408,22 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   /// Build bottom bar for selection mode
   Widget _buildSelectionBottomBar() {
+    final isAllSelected = _currentConversations.isNotEmpty &&
+        _selectedConversations.length == _currentConversations.length;
+
     return BottomAppBar(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
             TextButton.icon(
-              onPressed: () {
-                // This will be implemented when we have access to conversations list
-                // For now, we'll show a placeholder
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Select all functionality will be available in the next update'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.select_all),
-              label: const Text('Select All'),
+              onPressed:
+                  _currentConversations.isNotEmpty ? _toggleSelectAll : null,
+              icon: Icon(isAllSelected ? Icons.deselect : Icons.select_all),
+              label: Text(isAllSelected ? 'Deselect All' : 'Select All'),
+              style: TextButton.styleFrom(
+                foregroundColor: MyApp.primaryColor,
+              ),
             ),
             const Spacer(),
             if (_selectedConversations.isNotEmpty)
@@ -521,8 +532,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
             );
           }
 
-          final conversations = snapshot.data!;
-          return _buildConversationsListView(context, conversations, user);
+          _currentConversations = snapshot.data!; // Update the field
+          return _buildConversationsListView(context, snapshot.data!, user);
         },
       );
     }
@@ -558,6 +569,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   Widget _buildConversationsListView(
       BuildContext context, List<Conversation> conversations, dynamic user) {
+    // Update the current conversations list
+    _currentConversations = conversations;
+
     if (conversations.isEmpty) {
       return Center(
         child: Column(
@@ -616,10 +630,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   Widget _buildConversationTile(
       BuildContext context, Conversation conversation, dynamic user) {
-    final displayName = conversation.participant?.name ??
-        conversation.participant?.displayName ??
-        conversation.participant?.email ??
-        'Unknown User';
+    // Use the conversation's getOtherUser method to get the other person from current user's perspective
+    final otherUser = conversation.getOtherUser(widget.user.id);
+
+    // Use the conversation's getDisplayName method to get the proper display name
+    final displayName = conversation.getDisplayName(widget.user.id);
+
     final avatar = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
     final lastMessage = conversation.lastMessage?.content ?? 'No messages yet';
     final time = _formatTime(conversation.updatedAt);
@@ -627,12 +643,11 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final isDeleting = _deletingConversations.contains(conversation.id);
     final isSelected = _selectedConversations.contains(conversation.id);
 
-    // Check if participant is registered (if we have participant data)
-    final isParticipantRegistered = conversation.participant != null &&
-        conversation.participant!.id.isNotEmpty;
+    // Check if the other user is registered (if we have other user data)
+    final isOtherUserRegistered = otherUser != null && otherUser.id.isNotEmpty;
 
     Widget tileContent = Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       elevation: 2,
       child: Stack(
         children: [
@@ -659,7 +674,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
                   child: Text(displayName,
                       style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                if (!isParticipantRegistered)
+                if (!isOtherUserRegistered)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
@@ -688,7 +703,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (!isParticipantRegistered)
+                if (!isOtherUserRegistered)
                   Text(
                     'Contact not registered - messages sent via email',
                     style: TextStyle(
@@ -727,53 +742,23 @@ class _ConversationsPageState extends State<ConversationsPage> {
             onTap: _isSelectionMode
                 ? () => _toggleConversationSelection(conversation.id)
                 : () async {
-                    // Get the contact details for navigation
-                    String? contactId;
+                    // Get the other user's email for navigation
+                    final otherUser = conversation.getOtherUser(widget.user.id);
+                    final chatId = otherUser?.email ??
+                        conversation.getOtherUserId(widget.user.id);
 
-                    // If participant is a registered user, try to find their contact
-                    if (conversation.participant != null) {
-                      // Try to find contact by email
-                      final contacts = await widget
-                          .serviceManager.contactService
-                          .getContactsByOwner(widget.user.id);
-
-                      final contact = contacts.firstWhere(
-                        (c) => c.email == conversation.participant!.email,
-                        orElse: () => Contact(
-                          id: '',
-                          ownerId: widget.user.id,
-                          owner: widget.user,
-                          name: conversation.participant!.name ?? '',
-                          displayName:
-                              conversation.participant!.displayName ?? '',
-                          email: conversation.participant!.email,
-                          phone: conversation.participant!.phone,
-                          company: conversation.participant!.company,
-                          website: conversation.participant!.website,
-                          position: conversation.participant!.title,
-                          notes: conversation.participant!.notes,
-                          isFavorite: false,
-                          isBlocked: false,
-                          chamberMember:
-                              conversation.participant!.chamberMember,
-                          createdAt: DateTime.now(),
-                          updatedAt: DateTime.now(),
-                        ),
-                      );
-
-                      contactId = contact.id.isNotEmpty ? contact.id : null;
+                    // Use a post-frame callback to ensure the context is valid
+                    if (mounted) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.chat,
+                            arguments: {'chatId': chatId},
+                          );
+                        }
+                      });
                     }
-
-                    // If no contact found, use participant email as fallback
-                    if (contactId == null || contactId.isEmpty) {
-                      contactId = conversation.participantId;
-                    }
-
-                    Navigator.pushNamed(
-                      context,
-                      AppRoutes.chat,
-                      arguments: {'chatId': contactId},
-                    );
                   },
             onLongPress: _isSelectionMode
                 ? null

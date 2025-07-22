@@ -27,9 +27,15 @@ class ContactService {
   /// Create a new contact
   Future<String> createContact(Contact contact) async {
     try {
+      // Ensure email is stored in lowercase for consistent duplicate checking
+      final contactData = contact.toJson();
+      if (contactData['email'] != null) {
+        contactData['email'] = contactData['email'].toString().toLowerCase();
+      }
+
       final docRef = await _firebaseProvider!.createDocument(
         _collection,
-        contact.toJson(),
+        contactData,
       );
       return docRef.id;
     } catch (e) {
@@ -66,10 +72,16 @@ class ContactService {
   /// Update contact
   Future<void> updateContact(String contactId, Contact contact) async {
     try {
+      // Ensure email is stored in lowercase for consistent duplicate checking
+      final contactData = contact.toJson();
+      if (contactData['email'] != null) {
+        contactData['email'] = contactData['email'].toString().toLowerCase();
+      }
+
       await _firebaseProvider!.updateDocument(
         _collection,
         contactId,
-        contact.toJson(),
+        contactData,
       );
     } catch (e) {
       throw Exception('Failed to update contact: $e');
@@ -232,6 +244,25 @@ class ContactService {
   bool _isValidEmail(String email) {
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     return emailRegex.hasMatch(email);
+  }
+
+  /// Check if email already exists for the given owner
+  Future<bool> isEmailDuplicate(String ownerId, String email) async {
+    try {
+      final filters = [
+        MapEntry('ownerId', ownerId),
+        MapEntry('email', email.trim().toLowerCase()),
+      ];
+      final querySnapshot = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: filters,
+        limit: 1,
+      );
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      // If there's an error checking, assume not duplicate to avoid blocking
+      return false;
+    }
   }
 
   /// Get user by ID (helper method)
@@ -422,6 +453,39 @@ class ContactService {
       return null;
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Get contact by email from owner's contacts
+  Future<Contact?> getContactByEmailFromOwner(
+      String ownerId, String email) async {
+    try {
+      final filters = [
+        MapEntry('ownerId', ownerId),
+        MapEntry('email', email.toLowerCase()),
+      ];
+      final querySnapshot = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: filters,
+        limit: 1,
+      );
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final doc = querySnapshot.docs.first;
+        final data = doc.data() as Map<String, dynamic>;
+
+        // Fetch the owner user data
+        final owner = await _getUserById(ownerId);
+
+        return Contact.fromJson({
+          'id': doc.id,
+          ...data,
+          'owner': owner != null ? owner.toJson() : data['owner'],
+        });
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to get contact by email: $e');
     }
   }
 }

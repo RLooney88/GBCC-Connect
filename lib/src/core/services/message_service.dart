@@ -1,5 +1,5 @@
+import 'package:flutter/foundation.dart'; // Added for debugPrint
 import '../models/message.dart';
-import '../models/conversation.dart';
 import '../models/user.dart';
 import '../providers/firebase_provider.dart';
 import 'conversation_service.dart';
@@ -44,15 +44,14 @@ class MessageService {
         toEmail,
       );
 
-      // Get user details
-      final fromUser = await _getUserByEmail(fromEmail);
-      final toUser = await _getUserByEmail(toEmail);
+      // // Get user details
+      // final fromUser = await _getUserByEmail(fromEmail);
+      // final toUser = await _getUserByEmail(toEmail);
 
       // Create message
       final message = Message(
         id: '', // Will be set by Firestore
         conversationId: conversation.id,
-        conversation: conversation,
         from: fromEmail,
         to: toEmail,
         content: content,
@@ -74,8 +73,7 @@ class MessageService {
       // Update conversation with last message using ConversationService
       await _conversationService!.updateConversationWithMessage(
         conversation.id,
-        content,
-        message.timestamp,
+        messageWithId,
       );
 
       // Update unread count for recipient
@@ -347,30 +345,7 @@ class MessageService {
       }
     } catch (e) {
       // Log error but don't throw to avoid breaking message sending
-      print('Failed to update unread count: $e');
-    }
-  }
-
-  /// Get user by email
-  Future<User?> _getUserByEmail(String email) async {
-    try {
-      final filters = [MapEntry('email', email)];
-      final querySnapshot = await _firebaseProvider!.getDocuments(
-        'users',
-        filters: filters,
-        limit: 1,
-      );
-
-      if (querySnapshot.docs.isNotEmpty) {
-        final doc = querySnapshot.docs.first;
-        return User.fromJson({
-          'id': doc.id,
-          ...(doc.data() as Map<String, dynamic>),
-        });
-      }
-      return null;
-    } catch (e) {
-      return null;
+      debugPrint('Failed to update unread count: $e');
     }
   }
 

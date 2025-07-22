@@ -2,7 +2,9 @@
 
 The following composite indexes need to be created in your Firebase Console to resolve the query errors:
 
-## 1. Conversations Collection Index
+## 1. Conversations Collection Indexes
+
+### Conversations by Owner with UpdatedAt Ordering
 
 **Collection**: `conversations`
 **Fields**:
@@ -13,9 +15,108 @@ The following composite indexes need to be created in your Firebase Console to r
 
 **Purpose**: For querying conversations by owner with ordering by updatedAt
 
-**Direct Link**: https://console.firebase.google.com/v1/r/project/networking-app-bfabb/firestore/indexes?create_composite=Clpwcm9qZWN0cy9uZXR3b3JraW5nLWFwcC1iZmFiYi9kYXRhYmFzZXMvKGRlZmF1bHQpL2NvbGxlY3Rpb25Hcm91cHMvY29udmVyc2F0aW9ucy9pbmRleGVzL18QARoLCgdvd25lcklkEAEaDQoJdXBkYXRlZEF0EAIaDAoIX19uYW1lX18QAg
+### Conversations by Owner and Participant
 
-## 2. Contacts Collection Index
+**Collection**: `conversations`
+**Fields**:
+
+- `ownerId` (Ascending)
+- `participantId` (Ascending)
+- `__name__` (Ascending)
+
+**Purpose**: For finding specific conversations between two users
+
+### Conversations by Participant with UpdatedAt Ordering
+
+**Collection**: `conversations`
+**Fields**:
+
+- `participantId` (Ascending)
+- `updatedAt` (Descending)
+- `__name__` (Descending)
+
+**Purpose**: For querying conversations where user is participant
+
+### Conversations by Active Status
+
+**Collection**: `conversations`
+**Fields**:
+
+- `isActive` (Ascending)
+- `updatedAt` (Descending)
+- `__name__` (Descending)
+
+**Purpose**: For filtering active/archived conversations
+
+## 2. Messages Collection Indexes
+
+### Messages by Conversation with Timestamp Ordering
+
+**Collection**: `messages`
+**Fields**:
+
+- `conversationId` (Ascending)
+- `timestamp` (Descending)
+- `__name__` (Descending)
+
+**Purpose**: For retrieving messages in a conversation ordered by time
+
+### Messages by Conversation and Status
+
+**Collection**: `messages`
+**Fields**:
+
+- `conversationId` (Ascending)
+- `status` (Ascending)
+- `timestamp` (Descending)
+
+**Purpose**: For filtering messages by status within a conversation
+
+### Messages by Sender
+
+**Collection**: `messages`
+**Fields**:
+
+- `from` (Ascending)
+- `timestamp` (Descending)
+- `__name__` (Descending)
+
+**Purpose**: For querying messages sent by a specific user
+
+### Messages by Recipient
+
+**Collection**: `messages`
+**Fields**:
+
+- `to` (Ascending)
+- `timestamp` (Descending)
+- `__name__` (Descending)
+
+**Purpose**: For querying messages received by a specific user
+
+### Messages by Conversation, Recipient, and Status
+
+**Collection**: `messages`
+**Fields**:
+
+- `conversationId` (Ascending)
+- `to` (Ascending)
+- `status` (Ascending)
+
+**Purpose**: For marking messages as read (filtering by recipient and status)
+
+### Messages by Type
+
+**Collection**: `messages`
+**Fields**:
+
+- `messageType` (Ascending)
+- `timestamp` (Descending)
+- `__name__` (Descending)
+
+**Purpose**: For filtering messages by type (text, image, file)
+
+## 3. Contacts Collection Index
 
 **Collection**: `contacts`
 **Fields**:
@@ -26,9 +127,9 @@ The following composite indexes need to be created in your Firebase Console to r
 
 **Purpose**: For querying contacts by owner with ordering by name
 
-**Direct Link**: https://console.firebase.google.com/v1/r/project/networking-app-bfabb/firestore/indexes?create_composite=ClVwcm9qZWN0cy9uZXR3b3JraW5nLWFwcC1iZmFiYi9kYXRhYmFzZXMvKGRlZmF1bHQpL2NvbGxlY3Rpb25Hcm91cHMvY29udGFjdHMvaW5kZXhlcy9fEAEaCwoHb3duZXJJZBABGggKBG5hbWUQARoMCghfX25hbWVfXxAB
+## 4. Users Collection Indexes
 
-## 3. Users Collection Index - Chamber Members
+### Chamber Members
 
 **Collection**: `users`
 **Fields**:
@@ -39,7 +140,7 @@ The following composite indexes need to be created in your Firebase Console to r
 
 **Purpose**: For querying chamber members with ordering by name
 
-## 4. Users Collection Index - By Company
+### By Company
 
 **Collection**: `users`
 **Fields**:
@@ -52,6 +153,21 @@ The following composite indexes need to be created in your Firebase Console to r
 
 ## How to Create Indexes
 
+### Option 1: Use Firebase CLI (Recommended)
+
+```bash
+# Install Firebase CLI if not already installed
+npm install -g firebase-tools
+
+# Login to Firebase
+firebase login
+
+# Deploy indexes using the script
+./deploy_indexes.sh
+```
+
+### Option 2: Manual Creation via Firebase Console
+
 1. Go to the Firebase Console: https://console.firebase.google.com/
 2. Select your project: `networking-app-bfabb`
 3. Go to Firestore Database
@@ -60,30 +176,12 @@ The following composite indexes need to be created in your Firebase Console to r
 6. Add the fields as specified above
 7. Click "Create"
 
-## Alternative: Use Direct Links
-
-You can click the direct links above to create the indexes automatically in the Firebase Console.
-
-## Manual Creation Steps
-
-For indexes without direct links, follow these steps:
-
-### Users Collection Indexes
-
-1. **Chamber Members Index**:
-
-   - Collection: `users`
-   - Fields: `chamberMember` (Ascending), `name` (Ascending), `__name__` (Ascending)
-
-2. **Company Index**:
-   - Collection: `users`
-   - Fields: `company` (Ascending), `name` (Ascending), `__name__` (Ascending)
-
 ## Expected Result
 
 After creating these indexes, the following errors should be resolved:
 
 - `[cloud_firestore/failed-precondition] The query requires an index` for conversations
+- `[cloud_firestore/failed-precondition] The query requires an index` for messages
 - `[cloud_firestore/failed-precondition] The query requires an index` for contacts
 - `[cloud_firestore/failed-precondition] The query requires an index` for users
 
@@ -100,6 +198,8 @@ After creating the indexes, you can verify they are working by:
 3. Testing the search functionality
 4. Verifying that chamber member queries work
 5. Testing conversation loading
+6. Testing message sending and receiving
+7. Verifying message status updates work correctly
 
 ## Troubleshooting
 
@@ -110,3 +210,23 @@ If you still see index errors after creating the indexes:
 3. Verify the field names match exactly (case-sensitive)
 4. Ensure the collection names are correct
 5. Check that the query in your code matches the index structure
+
+## Query Patterns Supported
+
+These indexes support the following query patterns used in your codebase:
+
+### Conversations
+
+- `where('ownerId', isEqualTo: userId).orderBy('updatedAt', descending: true)`
+- `where('ownerId', isEqualTo: ownerId).where('participantId', isEqualTo: participantId)`
+- `where('participantId', isEqualTo: userId).orderBy('updatedAt', descending: true)`
+- `where('isActive', isEqualTo: true).orderBy('updatedAt', descending: true)`
+
+### Messages
+
+- `where('conversationId', isEqualTo: conversationId).orderBy('timestamp', descending: true)`
+- `where('conversationId', isEqualTo: conversationId).where('status', isEqualTo: status)`
+- `where('from', isEqualTo: userEmail).orderBy('timestamp', descending: true)`
+- `where('to', isEqualTo: userEmail).orderBy('timestamp', descending: true)`
+- `where('conversationId', isEqualTo: conversationId).where('to', isEqualTo: userEmail).where('status', isEqualTo: 'delivered')`
+- `where('messageType', isEqualTo: 'image').orderBy('timestamp', descending: true)`

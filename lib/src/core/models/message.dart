@@ -11,7 +11,6 @@ enum MessageStatus {
 class Message {
   final String id;
   final String conversationId;
-  final Conversation? conversation; // Make optional
   final String from; // from email
   final String to; // to email
   final String content;
@@ -23,7 +22,6 @@ class Message {
   Message({
     required this.id,
     required this.conversationId,
-    this.conversation, // Make optional
     required this.from,
     required this.to,
     required this.content,
@@ -50,7 +48,6 @@ class Message {
     return Message(
       id: json['id'] ?? '',
       conversationId: json['conversationId'] ?? '',
-      conversation: conversation,
       from: json['from'] ?? '',
       to: json['to'] ?? '',
       content: json['content'] ?? '',
@@ -112,7 +109,6 @@ class Message {
     return {
       'id': id,
       'conversationId': conversationId,
-      'conversation': conversation?.toJson(), // Handle null conversation
       'from': from,
       'to': to,
       'content': content,
@@ -138,7 +134,6 @@ class Message {
     return Message(
       id: id ?? this.id,
       conversationId: conversationId ?? this.conversationId,
-      conversation: conversation ?? this.conversation,
       from: from ?? this.from,
       to: to ?? this.to,
       content: content ?? this.content,

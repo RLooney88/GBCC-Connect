@@ -128,13 +128,13 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Create user document in Firestore
-  Future<void> _createUserDocument() async {
+  Future<void> _createUserDocument([String? displayName]) async {
     if (_firebaseUser == null) return;
 
     try {
       final newUser = User(
         id: _firebaseUser!.uid,
-        name: _firebaseUser!.displayName ?? 'User',
+        name: displayName ?? _firebaseUser!.displayName ?? 'No Name',
         email: _firebaseUser!.email ?? '',
         phone: _firebaseUser!.phoneNumber,
         createdAt: DateTime.now(),
@@ -236,7 +236,7 @@ class AuthProvider extends ChangeNotifier {
         await credential.user!.updateDisplayName(displayName);
 
         _firebaseUser = credential.user;
-        await _createUserDocument();
+        await _createUserDocument(displayName);
 
         // Log analytics
         await _configService.logEvent(

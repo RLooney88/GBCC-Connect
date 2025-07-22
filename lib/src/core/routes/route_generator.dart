@@ -15,9 +15,6 @@ import '../../features/conversations/conversations_page.dart';
 import '../../features/conversations/chat_page.dart';
 import '../../features/conversations/contact_selection_page.dart';
 import '../../features/qr_code/qr_code_page.dart';
-import '../../features/settings/settings_controller.dart';
-import '../../features/settings/settings_service.dart';
-import '../../features/settings/settings_view.dart';
 import '../../core/models/contact.dart';
 import 'app_routes.dart';
 
@@ -27,6 +24,16 @@ class RouteGenerator {
     final args = settings.arguments;
 
     switch (settings.name) {
+      case AppRoutes.home:
+        return MaterialPageRoute(
+          builder: (_) => AuthenticatedPageWrapper(
+            child: (context, user, serviceManager) => DashboardPage(
+              user: user,
+              serviceManager: serviceManager,
+            ),
+          ),
+        );
+
       case AppRoutes.splash:
         return MaterialPageRoute(
           builder: (_) => const AuthSplashScreen(),
@@ -88,11 +95,25 @@ class RouteGenerator {
         );
 
       case AppRoutes.addContact:
+        // Extract optional parameters for pre-filling form
+        String? preFilledName;
+        String? preFilledEmail;
+        String? returnToChatId;
+
+        if (args is Map<String, dynamic>) {
+          preFilledName = args['preFilledName'] as String?;
+          preFilledEmail = args['preFilledEmail'] as String?;
+          returnToChatId = args['returnToChatId'] as String?;
+        }
+
         return MaterialPageRoute(
           builder: (_) => AuthenticatedPageWrapper(
             child: (context, user, serviceManager) => AddContactPage(
               user: user,
               serviceManager: serviceManager,
+              preFilledName: preFilledName,
+              preFilledEmail: preFilledEmail,
+              returnToChatId: returnToChatId,
             ),
           ),
         );
@@ -259,12 +280,6 @@ class RouteGenerator {
               serviceManager: serviceManager,
             ),
           ),
-        );
-
-      case AppRoutes.settings:
-        return MaterialPageRoute(
-          builder: (_) =>
-              SettingsView(controller: SettingsController(SettingsService())),
         );
 
       default:

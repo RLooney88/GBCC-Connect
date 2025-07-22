@@ -29,12 +29,12 @@ class _ChatPageState extends State<ChatPage> {
   Stream<List<Message>>? _messageStream;
   String _ownerId = '';
   String _participantEmail = '';
+  User? _participantUser;
   String? _contactName;
   String? _contactAvatar;
   bool _isLoading = false;
   String? _error;
-  bool _isParticipantRegistered = false;
-  User? _participantUser;
+  bool _isParticipantRegistered = true;
 
   @override
   void initState() {
@@ -64,15 +64,70 @@ class _ChatPageState extends State<ChatPage> {
       // Use the user passed to the widget instead of AuthProvider
       final ownerUser = widget.user;
 
-      // Get contact details using the contact ID
-      final participantContact =
-          await widget.serviceManager.contactService.getContactById(chatId);
+      // Get contact details from owner's contacts using the participant's email
+      final participantContact = await widget.serviceManager.contactService
+          .getContactByEmailFromOwner(ownerUser.id, chatId);
 
       if (participantContact == null) {
-        setState(() {
-          _error = 'Contact not found';
-          _isLoading = false;
-        });
+        // Contact not found - but since they sent a message, they are registered
+        // Get their user information first
+        final participantUser = await serviceManager.contactService
+            .getRegisteredUserByEmail(chatId);
+
+        if (participantUser != null) {
+          // User is registered, show dialog with their name
+          if (mounted) {
+            final displayName = participantUser.name?.isNotEmpty == true
+                ? participantUser.name!
+                : participantUser.displayName?.isNotEmpty == true
+                    ? participantUser.displayName!
+                    : chatId.split('@')[0]; // Fallback to email prefix
+
+            final shouldAddContact =
+                await _showAddContactDialog(displayName, chatId);
+            if (mounted && shouldAddContact == true) {
+              // Navigate to add contact page with pre-filled data
+              Navigator.pushNamed(
+                context,
+                AppRoutes.addContact,
+                arguments: {
+                  'preFilledEmail': chatId, // chatId is the email
+                  'preFilledName': displayName,
+                  'returnToChatId': chatId, // Return to this chat after adding
+                },
+              );
+              return; // Exit the method as we're navigating away
+            } else if (mounted) {
+              // User declined to add contact, go back
+              // Navigator.pop(context);
+              return;
+            }
+          }
+        } else {
+          // This shouldn't happen since they sent a message, but handle gracefully
+          if (mounted) {
+            final shouldAddContact =
+                await _showAddContactDialog(chatId.split('@')[0], chatId);
+            if (mounted && shouldAddContact == true) {
+              // Navigate to add contact page with pre-filled data
+              Navigator.pushNamed(
+                context,
+                AppRoutes.addContact,
+                arguments: {
+                  'preFilledEmail': chatId, // chatId is the email
+                  'preFilledName':
+                      chatId.split('@')[0], // Use email prefix as name
+                  'returnToChatId': chatId, // Return to this chat after adding
+                },
+              );
+              return; // Exit the method as we're navigating away
+            } else if (mounted) {
+              // User declined to add contact, go back
+              // Navigator.pop(context);
+              return;
+            }
+          }
+        }
         return;
       }
 
@@ -102,12 +157,12 @@ class _ChatPageState extends State<ChatPage> {
       });
 
       if (isRegistered) {
-        // Get or create conversation using email-based approach
-        final conversation = await serviceManager.conversationService
-            .createOrGetConversationByEmail(
-          ownerUser.email,
-          _participantEmail,
-        );
+        // // Get or create conversation using email-based approach
+        // final conversation = await serviceManager.conversationService
+        //     .createOrGetConversationByEmail(
+        //   ownerUser.email,
+        //   _participantEmail,
+        // );
 
         setState(() {
           _isLoading = true;
@@ -204,7 +259,7 @@ class _ChatPageState extends State<ChatPage> {
                       'Not registered',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.orange[200],
+                        color: Colors.orange[400],
                       ),
                     ),
                 ],
@@ -263,7 +318,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildMessagesList(BuildContext context) {
-    // Show loading state
+    // Show loading state when still initializing
     if (_isLoading && _messageStream == null) {
       return const Center(
         child: CircularProgressIndicator(),
@@ -345,28 +400,9 @@ class _ChatPageState extends State<ChatPage> {
       );
     }
 
-    // Fallback to empty state
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.chat_bubble_outline,
-            size: 64,
-            color: Colors.grey,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No messages yet',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Start a conversation by sending a message',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
-      ),
+    // Show loading state when stream is not yet set up
+    return const Center(
+      child: CircularProgressIndicator(),
     );
   }
 
@@ -403,6 +439,7 @@ class _ChatPageState extends State<ChatPage> {
       controller: _scrollController,
       padding: const EdgeInsets.all(16),
       itemCount: messages.length,
+      reverse: true,
       itemBuilder: (context, index) {
         final message = messages[index];
         final isMe = message.from == currentUser.email;
@@ -723,5 +760,72 @@ class _ChatPageState extends State<ChatPage> {
         );
       }
     }
+  }
+
+  Future<bool> _showAddContactDialog(String displayName, String email) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(
+                    Icons.person_add,
+                    color: MyApp.primaryColor,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Contact Not Found'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'The contact:',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      displayName,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: MyApp.primaryColor,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'was not found in your contacts. Would you like to add them to your contacts?',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: MyApp.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Add Contact'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 }

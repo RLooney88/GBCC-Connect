@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gbcc_connect_app/src/core/constants/constants.dart';
 import '../providers/auth_provider.dart';
 import '../../app.dart';
 
@@ -53,42 +54,60 @@ class _AuthSplashScreenState extends State<AuthSplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: MyApp.primaryColor,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // App logo or icon
-            Icon(
-              Icons.connect_without_contact,
-              size: 80,
-              color: Colors.white,
+      body: Stack(
+        children: [
+          // Main content
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // App logo or icon
+                Icon(
+                  Icons.connect_without_contact,
+                  size: 80,
+                  color: Colors.white,
+                ),
+                SizedBox(height: 24),
+                // App name
+                Text(
+                  AppConstants.appName,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 48),
+                // Loading indicator
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+                SizedBox(height: 24),
+                // Loading text
+                Text(
+                  'Initializing...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
             ),
-            SizedBox(height: 24),
-            // App name
-            Text(
-              'GBCC Connect',
+          ),
+          // App version at top-right
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            right: 16,
+            child: Text(
+              'v${AppConstants.appVersion}',
               style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+                fontSize: 12,
+                color: Colors.grey[400],
+                fontWeight: FontWeight.w400,
               ),
             ),
-            SizedBox(height: 48),
-            // Loading indicator
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-            SizedBox(height: 24),
-            // Loading text
-            Text(
-              'Initializing...',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white70,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

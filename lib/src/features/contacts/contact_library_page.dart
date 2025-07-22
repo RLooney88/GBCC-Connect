@@ -32,7 +32,7 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
 
   // Multi-selection state
   bool _isSelectionMode = false;
-  Set<String> _selectedContactIds = {};
+  final Set<String> _selectedContactIds = {};
 
   @override
   void initState() {
@@ -412,7 +412,7 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
                   : _selectAllContacts,
               icon: Icon(
                 _selectedContactIds.length == _filteredContacts.length
-                    ? Icons.check_box
+                    ? Icons.deselect
                     : Icons.select_all,
               ),
               label: Text(

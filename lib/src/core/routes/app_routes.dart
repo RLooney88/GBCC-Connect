@@ -1,4 +1,7 @@
 class AppRoutes {
+  // Root route
+  static const String home = '/';
+
   // Auth routes
   static const String splash = '/splash';
   static const String login = '/login';
@@ -29,6 +32,7 @@ class AppRoutes {
 
   // Helper method to get all routes
   static List<String> get allRoutes => [
+        home,
         splash,
         login,
         register,

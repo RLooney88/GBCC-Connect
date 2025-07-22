@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gbcc_connect_app/src/core/constants/constants.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/user.dart';
 import '../../core/providers/auth_provider.dart';
@@ -57,7 +58,8 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _buildProfileHeader(BuildContext context) {
-    final displayName = user.displayName ?? user.name ?? 'Unknown User';
+    final displayName =
+        user.displayName ?? user.name ?? AppConstants.defaultDisplayName;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),

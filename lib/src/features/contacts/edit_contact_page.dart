@@ -202,20 +202,18 @@ class _EditContactPageState extends State<EditContactPage> {
                       TextFormField(
                         controller: _emailController,
                         decoration: const InputDecoration(
-                          labelText: 'Email',
+                          labelText: 'Email *',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.email_outlined),
                         ),
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
-                          if (value != null && value.trim().isNotEmpty) {
-                            // More permissive email validation
-                            final emailPattern = RegExp(
-                              r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-                            );
-                            if (!emailPattern.hasMatch(value.trim())) {
-                              return 'Please enter a valid email address';
-                            }
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter an email address';
+                          }
+                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                              .hasMatch(value.trim())) {
+                            return 'Please enter a valid email address';
                           }
                           return null;
                         },
@@ -591,10 +589,31 @@ class _EditContactPageState extends State<EditContactPage> {
         return;
       }
 
+      final email = _emailController.text.trim();
+      final currentUser = _originalContact!.owner;
+
+      // Check for duplicate email, but exclude the current contact being edited
+      final isDuplicate = await serviceManager.contactService.isEmailDuplicate(
+        currentUser.id,
+        email,
+      );
+
+      // If email is duplicate and it's not the same as the original contact's email
+      if (isDuplicate &&
+          email.toLowerCase() != _originalContact!.email.toLowerCase()) {
+        if (mounted) {
+          _showErrorSnackBar('A contact with this email already exists.');
+          setState(() {
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
       // Create the updated contact object
       final updatedContact = _originalContact!.copyWith(
         name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
+        email: email,
         phone: _phoneController.text.trim().isEmpty
             ? null
             : _phoneController.text.trim(),

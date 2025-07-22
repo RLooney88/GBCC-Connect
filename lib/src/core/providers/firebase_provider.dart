@@ -116,6 +116,18 @@ class FirebaseProvider extends ChangeNotifier {
     }
   }
 
+  /// Create document in collection with specific document ID
+  Future<DocumentReference> createDocumentWithId(
+      String collection, String documentId, Map<String, dynamic> data) async {
+    try {
+      await _firestore.collection(collection).doc(documentId).set(data);
+      return _firestore.collection(collection).doc(documentId);
+    } catch (e) {
+      _setError('Failed to create document with ID: $e');
+      rethrow;
+    }
+  }
+
   /// Get document by ID
   Future<DocumentSnapshot?> getDocument(
       String collection, String documentId) async {

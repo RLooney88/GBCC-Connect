@@ -1,5 +1,6 @@
 import '../models/conversation.dart';
 import '../models/user.dart';
+import '../models/message.dart';
 import '../providers/firebase_provider.dart';
 
 /// Domain/Business Logic Layer: ConversationService
@@ -23,6 +24,13 @@ class ConversationService {
     _firebaseProvider = firebaseProvider;
   }
 
+  /// Generate a consistent conversation ID from two email addresses
+  /// This ensures the same conversation ID regardless of the order of emails
+  String _generateConversationId(String email1, String email2) {
+    final emails = [email1, email2]..sort();
+    return '${emails[0]}_${emails[1]}';
+  }
+
   /// Create or get a conversation between two users by email
   /// This works for both registered and unregistered users
   Future<Conversation> createOrGetConversationByEmail(
@@ -31,8 +39,8 @@ class ConversationService {
   ) async {
     try {
       // Create a unique conversation ID based on emails (sorted to ensure consistency)
-      final emails = [ownerEmail, participantEmail]..sort();
-      final conversationId = '${emails[0]}_${emails[1]}';
+      final conversationId =
+          _generateConversationId(ownerEmail, participantEmail);
 
       // Check if conversation already exists
       final existingDoc = await _firebaseProvider!.getDocument(
@@ -68,10 +76,13 @@ class ConversationService {
         isActive: true,
       );
 
-      // Save to Firestore
-      await _firebaseProvider!.createDocument(
+      // Save to Firestore with specific document ID
+      final conversationData = conversation.toJson();
+      conversationData.remove('id'); // Remove id field to avoid duplication
+      await _firebaseProvider!.createDocumentWithId(
         _collection,
-        conversation.toJson(),
+        conversationId,
+        conversationData,
       );
 
       return conversation;
@@ -86,8 +97,8 @@ class ConversationService {
     String participantEmail,
   ) async {
     try {
-      final emails = [ownerEmail, participantEmail]..sort();
-      final conversationId = '${emails[0]}_${emails[1]}';
+      final conversationId =
+          _generateConversationId(ownerEmail, participantEmail);
 
       final doc = await _firebaseProvider!.getDocument(
         _collection,
@@ -111,27 +122,50 @@ class ConversationService {
     String participantId,
   ) async {
     try {
-      // First try to find by user IDs
-      final filters = [
-        MapEntry('ownerId', ownerId),
-        MapEntry('participantId', participantId),
-      ];
+      // Get user emails to generate conversation ID
+      final ownerUser = await _getUserById(ownerId);
+      final participantUser = await _getUserById(participantId);
 
-      final querySnapshot = await _firebaseProvider!.getDocuments(
-        _collection,
-        filters: filters,
-        limit: 1,
-      );
+      if (ownerUser == null || participantUser == null) {
+        // If users not found, try to find by user IDs directly
+        final filters = [
+          MapEntry('ownerId', ownerId),
+          MapEntry('participantId', participantId),
+        ];
 
-      if (querySnapshot.docs.isNotEmpty) {
-        final doc = querySnapshot.docs.first;
-        return Conversation.fromJson({
-          'id': doc.id,
-          ...(doc.data() as Map<String, dynamic>),
-        });
+        final querySnapshot = await _firebaseProvider!.getDocuments(
+          _collection,
+          filters: filters,
+          limit: 1,
+        );
+
+        if (querySnapshot.docs.isNotEmpty) {
+          final doc = querySnapshot.docs.first;
+          return Conversation.fromJson({
+            'id': doc.id,
+            ...(doc.data() as Map<String, dynamic>),
+          });
+        }
+        return null;
       }
 
-      return null;
+      // Generate conversation ID from emails
+      final conversationId = _generateConversationId(
+        ownerUser.email,
+        participantUser.email,
+      );
+
+      final doc = await _firebaseProvider!.getDocument(
+        _collection,
+        conversationId,
+      );
+
+      if (doc == null || !doc.exists) return null;
+
+      return Conversation.fromJson({
+        'id': doc.id,
+        ...(doc.data() as Map<String, dynamic>),
+      });
     } catch (e) {
       throw Exception('Failed to get conversation between users: $e');
     }
@@ -158,8 +192,8 @@ class ConversationService {
           });
         }).where((conversation) {
           // Filter conversations where user is owner or participant
-          return conversation.ownerId == userIdentifier ||
-              conversation.participantId == userIdentifier;
+          return conversation.owner?.email == userIdentifier ||
+              conversation.participant?.email == userIdentifier;
         }).toList();
       });
     } catch (e) {
@@ -195,19 +229,15 @@ class ConversationService {
   /// Update conversation with last message
   Future<void> updateConversationWithMessage(
     String conversationId,
-    String lastMessageContent,
-    DateTime timestamp,
+    Message message,
   ) async {
     try {
       await _firebaseProvider!.updateDocument(
         _collection,
         conversationId,
         {
-          'lastMessage': {
-            'content': lastMessageContent,
-            'timestamp': timestamp.toIso8601String(),
-          },
-          'updatedAt': timestamp.toIso8601String(),
+          'lastMessage': message.toJson(),
+          'updatedAt': message.timestamp.toIso8601String(),
         },
       );
     } catch (e) {
@@ -293,6 +323,30 @@ class ConversationService {
   Future<User?> _getUserByEmail(String email) async {
     try {
       final filters = [MapEntry('email', email)];
+      final querySnapshot = await _firebaseProvider!.getDocuments(
+        'users',
+        filters: filters,
+        limit: 1,
+      );
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final doc = querySnapshot.docs.first;
+        return User.fromJson({
+          'id': doc.id,
+          ...(doc.data() as Map<String, dynamic>),
+        });
+      }
+      return null;
+    } catch (e) {
+      // Return null if user not found or error
+      return null;
+    }
+  }
+
+  /// Get user by ID (returns null if not found)
+  Future<User?> _getUserById(String userId) async {
+    try {
+      final filters = [MapEntry('id', userId)];
       final querySnapshot = await _firebaseProvider!.getDocuments(
         'users',
         filters: filters,

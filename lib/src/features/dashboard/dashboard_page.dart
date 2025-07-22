@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gbcc_connect_app/src/core/constants/constants.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/user.dart';
 import '../../core/providers/auth_provider.dart';
@@ -105,93 +106,98 @@ class _DashboardPageState extends State<DashboardPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Dashboard'),
-        backgroundColor: MyApp.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () => Navigator.pushNamed(context, AppRoutes.profile),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await context.read<AuthProvider>().logout();
-              if (context.mounted) {
-                Navigator.of(context).pushReplacementNamed(AppRoutes.login);
-              }
-            },
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadStats,
-        child: SingleChildScrollView(
-          physics: AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Welcome section
-              _buildWelcomeSection(widget.user),
-              SizedBox(height: 24),
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(AppConstants.appName),
+          backgroundColor: MyApp.primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.person),
+              onPressed: () => Navigator.pushNamed(context, AppRoutes.profile),
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () async {
+                await context.read<AuthProvider>().logout();
+                if (context.mounted) {
+                  Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+                }
+              },
+            ),
+          ],
+        ),
+        body: RefreshIndicator(
+          onRefresh: _loadStats,
+          child: SingleChildScrollView(
+            physics: AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Welcome section
+                _buildWelcomeSection(widget.user),
+                SizedBox(height: 24),
 
-              // Stats cards
-              _buildStatsSection(),
-              SizedBox(height: 24),
+                // Stats cards
+                _buildStatsSection(),
+                SizedBox(height: 24),
 
-              // Quick actions
-              _buildQuickActionsSection(),
-              SizedBox(height: 24),
-            ],
+                // Quick actions
+                _buildQuickActionsSection(),
+                SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: 0,
-        selectedItemColor: MyApp.primaryColor,
-        unselectedItemColor: Colors.grey[600],
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.contacts),
-            label: 'Contacts',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'Chats',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-        onTap: (index) {
-          switch (index) {
-            case 1:
-              Navigator.of(context).pushNamed(AppRoutes.contactLibrary);
-              break;
-            case 2:
-              Navigator.of(context).pushNamed(AppRoutes.conversations);
-              break;
-            case 3:
-              Navigator.of(context).pushNamed(AppRoutes.profile);
-              break;
-          }
-        },
+        bottomNavigationBar: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          currentIndex: 0,
+          selectedItemColor: MyApp.primaryColor,
+          unselectedItemColor: Colors.grey[600],
+          items: [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard),
+              label: 'Dashboard',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.contacts),
+              label: 'Contacts',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.chat),
+              label: 'Chats',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person),
+              label: 'Profile',
+            ),
+          ],
+          onTap: (index) {
+            switch (index) {
+              case 1:
+                Navigator.of(context).pushNamed(AppRoutes.contactLibrary);
+                break;
+              case 2:
+                Navigator.of(context).pushNamed(AppRoutes.conversations);
+                break;
+              case 3:
+                Navigator.of(context).pushNamed(AppRoutes.profile);
+                break;
+            }
+          },
+        ),
       ),
     );
   }
 
   Widget _buildWelcomeSection(User user) {
-    final displayName = user.displayName ?? user.name ?? 'Unknown User';
+    final displayName =
+        user.displayName ?? user.name ?? AppConstants.defaultDisplayName;
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(

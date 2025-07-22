@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gbcc_connect_app/src/core/constants/constants.dart';
 import '../../core/models/user.dart';
 import '../../core/services/service_manager.dart';
 import '../../core/routes/app_routes.dart';
@@ -39,7 +40,8 @@ class _QRCodePageState extends State<QRCodePage> {
   }
 
   Widget _buildQRCodeContent(BuildContext context, dynamic user) {
-    final displayName = user.displayName ?? user.name ?? 'Unknown User';
+    final displayName =
+        user.displayName ?? user.name ?? AppConstants.defaultDisplayName;
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
