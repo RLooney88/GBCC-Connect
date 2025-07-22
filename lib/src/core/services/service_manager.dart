@@ -3,6 +3,7 @@ import 'user_service.dart';
 import 'conversation_service.dart';
 import 'message_service.dart';
 import 'contact_service.dart';
+import 'email_service.dart';
 
 /// App-Level Provider: ServiceManager
 /// Mission: Coordinate service initialization and provide access to all services
@@ -23,6 +24,7 @@ class ServiceManager {
   late final ConversationService _conversationService;
   late final MessageService _messageService;
   late final ContactService _contactService;
+  late final EmailService _emailService;
 
   // Application state
   bool _isInitialized = false;
@@ -39,6 +41,7 @@ class ServiceManager {
   ConversationService get conversationService => _conversationService;
   MessageService get messageService => _messageService;
   ContactService get contactService => _contactService;
+  EmailService get emailService => _emailService;
   FirebaseProvider? get firebaseProvider => _firebaseProvider;
 
   /// Initialize all services with an existing FirebaseProvider
@@ -59,21 +62,20 @@ class ServiceManager {
       _userService = UserService.instance;
       await _userService.initialize(_firebaseProvider!);
 
-      // 2. MessageService (no dependencies initially)
-      _messageService = MessageService.instance;
-      await _messageService.initialize(_firebaseProvider!);
-
-      // 3. ContactService (no dependencies)
+      // 2. ContactService (no dependencies)
       _contactService = ContactService.instance;
       await _contactService.initialize(_firebaseProvider!);
 
-      // 4. ConversationService (depends on UserService and MessageService)
+      // 3. ConversationService (no dependencies)
       _conversationService = ConversationService.instance;
-      await _conversationService.initialize(
-          _firebaseProvider!, _userService, _messageService);
+      await _conversationService.initialize(_firebaseProvider!);
 
-      // 5. Set conversation service reference in MessageService
-      _messageService.setConversationService(_conversationService);
+      // 4. MessageService (depends on ConversationService)
+      _messageService = MessageService.instance;
+      await _messageService.initialize(_firebaseProvider!);
+
+      // 5. EmailService (no dependencies)
+      _emailService = EmailService.instance;
 
       _isInitialized = true;
     } catch (e) {

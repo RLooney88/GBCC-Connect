@@ -28,11 +28,13 @@ class _ChatPageState extends State<ChatPage> {
   final ScrollController _scrollController = ScrollController();
   Stream<List<Message>>? _messageStream;
   String _ownerId = '';
-  String _participantId = '';
+  String _participantEmail = '';
   String? _contactName;
   String? _contactAvatar;
   bool _isLoading = false;
   String? _error;
+  bool _isParticipantRegistered = false;
+  User? _participantUser;
 
   @override
   void initState() {
@@ -43,7 +45,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _initializeChat() async {
-    // Use the chatId passed to the widget
+    // Use the chatId passed to the widget (this should be the contact ID)
     final chatId = widget.chatId;
 
     // Validate required parameter
@@ -61,60 +63,78 @@ class _ChatPageState extends State<ChatPage> {
 
       // Use the user passed to the widget instead of AuthProvider
       final ownerUser = widget.user;
-      final participantUser =
+
+      // Get contact details using the contact ID
+      final participantContact =
           await widget.serviceManager.contactService.getContactById(chatId);
+
+      if (participantContact == null) {
+        setState(() {
+          _error = 'Contact not found';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Check if participant is registered
+      final isRegistered = await serviceManager.contactService
+          .isContactRegisteredUser(participantContact.email);
+
+      User? participantUser;
+      if (isRegistered) {
+        participantUser = await serviceManager.contactService
+            .getRegisteredUserByEmail(participantContact.email);
+      }
 
       // Update UI with contact details immediately
       setState(() {
         _ownerId = ownerUser.id;
-        _participantId =
-            chatId; // We already validated chatId is not empty above
-        _contactName = participantUser?.name ??
-            participantUser?.displayName ??
-            participantUser?.email;
-        _contactAvatar = participantUser?.name.isNotEmpty == true
-            ? participantUser!.name[0].toUpperCase()
-            : 'U';
+        _participantEmail = participantContact.email;
+        _contactName = participantContact.name.isNotEmpty
+            ? participantContact.name
+            : participantContact.displayName.isNotEmpty
+                ? participantContact.displayName
+                : participantContact.email;
+        _contactAvatar =
+            _contactName!.isNotEmpty ? _contactName![0].toUpperCase() : 'U';
+        _isParticipantRegistered = isRegistered;
+        _participantUser = participantUser;
       });
 
-      // get a conversation between owenerUser and participantUser
-      final conversation =
-          await serviceManager.conversationService.getConversationBetweenUsers(
-        ownerUser.id,
-        participantUser!.id,
-      );
+      if (isRegistered) {
+        // Get or create conversation using email-based approach
+        final conversation = await serviceManager.conversationService
+            .createOrGetConversationByEmail(
+          ownerUser.email,
+          _participantEmail,
+        );
 
-      // if no conversation, didn't get any message
-      if (conversation == null) {
-        return;
+        setState(() {
+          _isLoading = true;
+          _error = null;
+        });
+
+        // Set up real-time streaming using email-based approach
+        _messageStream = serviceManager.messageService.streamMessagesByEmail(
+          ownerUser.email,
+          _participantEmail,
+        );
+
+        // Mark messages as read
+        await serviceManager.messageService.markMessagesAsRead(
+          ownerUser.email,
+          _participantEmail,
+        );
+
+        setState(() {
+          _isLoading = false;
+        });
+      } else {
+        // Show unregistered user message
+        setState(() {
+          _isLoading = false;
+        });
       }
-
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-
-      // // Load initial messages
-      // await serviceManager.messageService.getMessagesBetweenUsers(
-      //   ownerUser.id,
-      //   participantUser.id,
-      // );
-
-      // // Set up real-time streaming
-      // _messageStream = serviceManager.messageService.streamMessagesBetweenUsers(
-      //   ownerUser.id,
-      //   participantUser.id,
-      // );
-
-      // // Mark messages as read
-      // await serviceManager.messageService.markMessagesAsRead(
-      //   ownerUser.id,
-      //   participantUser.id,
-      // );
-
-      setState(() {
-        _isLoading = false;
-      });
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -132,10 +152,11 @@ class _ChatPageState extends State<ChatPage> {
 
     try {
       final serviceManager = widget.serviceManager;
+      final ownerUser = widget.user;
 
       await serviceManager.messageService.sendMessage(
-        _ownerId,
-        _participantId,
+        ownerUser.email,
+        _participantEmail, // This should be the participant's email
         _messageController.text.trim(),
       );
       _messageController.clear();
@@ -173,7 +194,22 @@ class _ChatPageState extends State<ChatPage> {
               ),
             ),
             const SizedBox(width: 8),
-            Text(contactName),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(contactName),
+                  if (!_isParticipantRegistered)
+                    Text(
+                      'Not registered',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange[200],
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
         backgroundColor: MyApp.primaryColor,
@@ -184,28 +220,45 @@ class _ChatPageState extends State<ChatPage> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.call),
-            onPressed: () {
-              _showCallFeature(context);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.videocam),
-            onPressed: () {
-              _showVideoCallFeature(context);
-            },
-          ),
+          if (_isParticipantRegistered) ...[
+            IconButton(
+              icon: const Icon(Icons.call),
+              onPressed: () {
+                _showCallFeature(context);
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.videocam),
+              onPressed: () {
+                _showVideoCallFeature(context);
+              },
+            ),
+          ] else ...[
+            IconButton(
+              icon: const Icon(Icons.email),
+              onPressed: () {
+                _sendEmailToUnregisteredUser();
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.person_add),
+              onPressed: () {
+                _sendInvitationToUnregisteredUser();
+              },
+            ),
+          ],
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _buildMessagesList(context),
-          ),
-          _buildMessageInput(context),
-        ],
-      ),
+      body: _isParticipantRegistered
+          ? Column(
+              children: [
+                Expanded(
+                  child: _buildMessagesList(context),
+                ),
+                _buildMessageInput(context),
+              ],
+            )
+          : _buildUnregisteredUserView(context),
     );
   }
 
@@ -352,7 +405,7 @@ class _ChatPageState extends State<ChatPage> {
       itemCount: messages.length,
       itemBuilder: (context, index) {
         final message = messages[index];
-        final isMe = message.senderId == currentUser.id;
+        final isMe = message.from == currentUser.email;
         return _buildMessageBubble(context, message, isMe);
       },
     );
@@ -509,5 +562,166 @@ class _ChatPageState extends State<ChatPage> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  Widget _buildUnregisteredUserView(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.email_outlined,
+              size: 80,
+              color: Colors.orange[400],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Contact Not Registered',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange[700],
+                  ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '${_contactName ?? 'This contact'} is not registered on GBCC Connect App yet.',
+              style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'You can send them an email or invite them to join the app.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _sendEmailToUnregisteredUser,
+                    icon: const Icon(Icons.email),
+                    label: const Text('Send Email'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _sendInvitationToUnregisteredUser,
+                    icon: const Icon(Icons.person_add),
+                    label: const Text('Send Invitation'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Back to Contacts'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _sendEmailToUnregisteredUser() async {
+    try {
+      final currentUser = widget.user;
+      final fromName = currentUser.name ?? currentUser.displayName ?? 'User';
+
+      final success =
+          await widget.serviceManager.emailService.sendEmailToUnregisteredUser(
+        toEmail: _participantEmail,
+        fromName: fromName,
+        fromEmail: currentUser.email,
+        messageContent:
+            'Hello ${_contactName ?? 'there'}, I would like to connect with you.',
+      );
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email client opened successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to open email client'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send email: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _sendInvitationToUnregisteredUser() async {
+    try {
+      final currentUser = widget.user;
+      final fromName = currentUser.name ?? currentUser.displayName ?? 'User';
+
+      final success =
+          await widget.serviceManager.emailService.sendInvitationEmail(
+        toEmail: _participantEmail,
+        fromName: fromName,
+        fromEmail: currentUser.email,
+        invitationMessage:
+            'Hello ${_contactName ?? 'there'}, I would like to invite you to join GBCC Connect App so we can chat directly.',
+      );
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invitation email opened successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to open email client'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send invitation: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

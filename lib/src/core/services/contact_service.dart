@@ -175,7 +175,6 @@ class ContactService {
   Future<Map<String, int>> getContactStats(String ownerId) async {
     try {
       final contacts = await getContactsByOwner(ownerId);
-
       return {
         'total': contacts.length,
         'favorites': contacts.where((c) => c.isFavorite).length,
@@ -384,5 +383,45 @@ class ContactService {
     // Add last field
     fields.add(buffer.toString());
     return fields;
+  }
+
+  /// Check if a contact is a registered user
+  Future<bool> isContactRegisteredUser(String email) async {
+    try {
+      final filters = [MapEntry('email', email)];
+      final querySnapshot = await _firebaseProvider!.getDocuments(
+        'users',
+        filters: filters,
+        limit: 1,
+      );
+
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      // If there's an error checking, assume not registered
+      return false;
+    }
+  }
+
+  /// Get user by email if they are registered
+  Future<User?> getRegisteredUserByEmail(String email) async {
+    try {
+      final filters = [MapEntry('email', email)];
+      final querySnapshot = await _firebaseProvider!.getDocuments(
+        'users',
+        filters: filters,
+        limit: 1,
+      );
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final doc = querySnapshot.docs.first;
+        return User.fromJson({
+          'id': doc.id,
+          ...(doc.data() as Map<String, dynamic>),
+        });
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 }

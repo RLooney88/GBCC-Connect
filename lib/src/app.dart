@@ -136,6 +136,24 @@ class MyApp extends StatelessWidget {
               selectionColor: Color(0x1A00a6bb),
               selectionHandleColor: primaryColor,
             ),
+            // Custom Checkbox theme for light mode
+            checkboxTheme: CheckboxThemeData(
+              fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return primaryColor;
+                }
+                return Colors.transparent;
+              }),
+              checkColor: WidgetStateProperty.all(Colors.white),
+              side: BorderSide(
+                color: Colors.grey[400]!,
+                width: 2.0,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4.0),
+              ),
+              materialTapTargetSize: MaterialTapTargetSize.padded,
+            ),
           ),
           darkTheme: ThemeData.dark().copyWith(
             primaryColor: primaryColor,
@@ -201,6 +219,24 @@ class MyApp extends StatelessWidget {
               cursorColor: primaryColor,
               selectionColor: Color(0x1A00a6bb),
               selectionHandleColor: primaryColor,
+            ),
+            // Custom Checkbox theme for dark mode
+            checkboxTheme: CheckboxThemeData(
+              fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return primaryColor;
+                }
+                return Colors.transparent;
+              }),
+              checkColor: WidgetStateProperty.all(Colors.white),
+              side: BorderSide(
+                color: Colors.grey[500]!,
+                width: 2.0,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4.0),
+              ),
+              materialTapTargetSize: MaterialTapTargetSize.padded,
             ),
             indicatorColor: primaryColor,
             progressIndicatorTheme: const ProgressIndicatorThemeData(

@@ -1,37 +1,79 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:gbcc_connect_app/src/core/models/conversation.dart';
+
+enum MessageStatus {
+  pending,
+  sent,
+  delivered,
+  read,
+}
 
 class Message {
   final String id;
-  final String senderId;
-  final String receiverId;
+  final String conversationId;
+  final Conversation? conversation; // Make optional
+  final String from; // from email
+  final String to; // to email
   final String content;
   final DateTime timestamp;
-  final bool isRead;
+  final MessageStatus status;
   final String? attachmentUrl;
   final String messageType; // 'text', 'image', 'file'
 
   Message({
     required this.id,
-    required this.senderId,
-    required this.receiverId,
+    required this.conversationId,
+    this.conversation, // Make optional
+    required this.from,
+    required this.to,
     required this.content,
     required this.timestamp,
-    this.isRead = false,
+    this.status = MessageStatus.pending,
     this.attachmentUrl,
     this.messageType = 'text',
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
+    Conversation? conversation;
+
+    // Parse conversation if available
+    if (json['conversation'] != null &&
+        json['conversation'] is Map<String, dynamic>) {
+      try {
+        conversation =
+            Conversation.fromJson(json['conversation'] as Map<String, dynamic>);
+      } catch (e) {
+        // Handle parsing error
+      }
+    }
+
     return Message(
       id: json['id'] ?? '',
-      senderId: json['senderId'] ?? '',
-      receiverId: json['receiverId'] ?? '',
+      conversationId: json['conversationId'] ?? '',
+      conversation: conversation,
+      from: json['from'] ?? '',
+      to: json['to'] ?? '',
       content: json['content'] ?? '',
       timestamp: _parseDateTime(json['timestamp']),
-      isRead: json['isRead'] ?? false,
+      status: _parseMessageStatus(json['status']),
       attachmentUrl: json['attachmentUrl'],
       messageType: json['messageType'] ?? 'text',
     );
+  }
+
+  static MessageStatus _parseMessageStatus(String status) {
+    switch (status) {
+      case 'pending':
+        return MessageStatus.pending;
+      case 'sent':
+        return MessageStatus.sent;
+      case 'delivered':
+        return MessageStatus.delivered;
+      case 'read':
+        return MessageStatus.read;
+      default:
+        return MessageStatus.pending;
+    }
   }
 
   // Helper method to parse DateTime safely
@@ -69,11 +111,13 @@ class Message {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'senderId': senderId,
-      'receiverId': receiverId,
+      'conversationId': conversationId,
+      'conversation': conversation?.toJson(), // Handle null conversation
+      'from': from,
+      'to': to,
       'content': content,
       'timestamp': timestamp.toIso8601String(),
-      'isRead': isRead,
+      'status': status.name,
       'attachmentUrl': attachmentUrl,
       'messageType': messageType,
     };
@@ -81,21 +125,25 @@ class Message {
 
   Message copyWith({
     String? id,
-    String? senderId,
-    String? receiverId,
+    String? conversationId,
+    Conversation? conversation,
+    String? from,
+    String? to,
     String? content,
     DateTime? timestamp,
-    bool? isRead,
+    MessageStatus? status,
     String? attachmentUrl,
     String? messageType,
   }) {
     return Message(
       id: id ?? this.id,
-      senderId: senderId ?? this.senderId,
-      receiverId: receiverId ?? this.receiverId,
+      conversationId: conversationId ?? this.conversationId,
+      conversation: conversation ?? this.conversation,
+      from: from ?? this.from,
+      to: to ?? this.to,
       content: content ?? this.content,
       timestamp: timestamp ?? this.timestamp,
-      isRead: isRead ?? this.isRead,
+      status: status ?? this.status,
       attachmentUrl: attachmentUrl ?? this.attachmentUrl,
       messageType: messageType ?? this.messageType,
     );

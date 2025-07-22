@@ -24,7 +24,7 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage>
     with WidgetsBindingObserver {
-  Map<String, int> _contactStats = {};
+  int _contacts = 0;
   int _unreadMessageCount = 0;
   bool _isLoadingStats = false;
 
@@ -60,16 +60,24 @@ class _DashboardPageState extends State<DashboardPage>
     });
 
     try {
-      // Load stats in parallel
+      // Load stats independently to handle failures gracefully
+      final contactsFuture = _getContacts().catchError((e) {
+        return 0;
+      });
+
+      final unreadMessagesFuture = _getUnreadMessageCount().catchError((e) {
+        return 0;
+      });
+
       final results = await Future.wait([
-        _getContactStats(),
-        _getUnreadMessageCount(),
+        contactsFuture,
+        unreadMessagesFuture,
       ]);
 
       if (mounted) {
         setState(() {
-          _contactStats = results[0] as Map<String, int>;
-          _unreadMessageCount = results[1] as int;
+          _contacts = results[0];
+          _unreadMessageCount = results[1];
           _isLoadingStats = false;
         });
       }
@@ -83,16 +91,16 @@ class _DashboardPageState extends State<DashboardPage>
     }
   }
 
-  Future<Map<String, int>> _getContactStats() async {
+  Future<int> _getContacts() async {
     final stats = await widget.serviceManager.contactService
         .getContactStats(widget.user.id);
-    return stats;
+    return stats['total'] ?? 0;
   }
 
   Future<int> _getUnreadMessageCount() async {
     final count = await widget.serviceManager.conversationService
-        .getUnreadMessageCount(widget.user.id);
-    return count;
+        .getConversationStats(widget.user.id);
+    return count['unread'] ?? 0;
   }
 
   @override
@@ -219,7 +227,7 @@ class _DashboardPageState extends State<DashboardPage>
                     Text(
                       'Welcome back,',
                       style: TextStyle(
-                        color: Colors.white70,
+                        color: Colors.white.withOpacity(0.9),
                         fontSize: 14,
                       ),
                     ),
@@ -235,14 +243,6 @@ class _DashboardPageState extends State<DashboardPage>
                 ),
               ),
             ],
-          ),
-          SizedBox(height: 16),
-          Text(
-            'Ready to connect with your network?',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-            ),
           ),
         ],
       ),
@@ -267,9 +267,9 @@ class _DashboardPageState extends State<DashboardPage>
             Expanded(
               child: _buildStatCard(
                 'Total Contacts',
-                _contactStats['total']?.toString() ?? '0',
+                _contacts.toString(),
                 Icons.people,
-                Colors.blue,
+                MyApp.primaryColor,
               ),
             ),
             SizedBox(width: 12),
@@ -292,7 +292,7 @@ class _DashboardPageState extends State<DashboardPage>
       {bool isFullWidth = false}) {
     return Container(
       width: isFullWidth ? double.infinity : null,
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -370,7 +370,7 @@ class _DashboardPageState extends State<DashboardPage>
               child: _buildActionCard(
                 'Add Contact',
                 Icons.person_add,
-                Colors.blue,
+                MyApp.primaryColor,
                 () => Navigator.of(context).pushNamed(AppRoutes.addContact),
               ),
             ),

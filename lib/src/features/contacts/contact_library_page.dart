@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gbcc_connect_app/src/app.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/services/service_manager.dart';
 import '../../core/models/contact.dart';
@@ -28,6 +29,10 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
   bool _isSearching = false;
   bool _isLoading = false;
   String? _error;
+
+  // Multi-selection state
+  bool _isSelectionMode = false;
+  Set<String> _selectedContactIds = {};
 
   @override
   void initState() {
@@ -107,6 +112,130 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
     });
   }
 
+  /// Toggle selection mode
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      if (!_isSelectionMode) {
+        _selectedContactIds.clear();
+      }
+    });
+  }
+
+  /// Toggle contact selection
+  void _toggleContactSelection(String contactId) {
+    setState(() {
+      if (_selectedContactIds.contains(contactId)) {
+        _selectedContactIds.remove(contactId);
+      } else {
+        _selectedContactIds.add(contactId);
+      }
+    });
+  }
+
+  /// Select all visible contacts
+  void _selectAllContacts() {
+    setState(() {
+      _selectedContactIds.addAll(_filteredContacts.map((c) => c.id));
+    });
+  }
+
+  /// Deselect all contacts
+  void _deselectAllContacts() {
+    setState(() {
+      _selectedContactIds.clear();
+    });
+  }
+
+  /// Get selected contacts
+  List<Contact> get _selectedContacts {
+    return _contacts.where((c) => _selectedContactIds.contains(c.id)).toList();
+  }
+
+  /// Bulk delete selected contacts
+  Future<void> _bulkDeleteContacts() async {
+    if (_selectedContacts.isEmpty) return;
+
+    final contactNames = _selectedContacts.map((c) => c.name).join(', ');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Contacts'),
+        content: Text(
+          'Are you sure you want to delete ${_selectedContacts.length} contact${_selectedContacts.length > 1 ? 's' : ''}?\n\n$contactNames',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        // Show loading indicator
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                      'Deleting ${_selectedContacts.length} contact${_selectedContacts.length > 1 ? 's' : ''}...'),
+                ],
+              ),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+
+        // Delete all selected contacts
+        for (final contact in _selectedContacts) {
+          await widget.serviceManager.contactService.deleteContact(contact.id);
+        }
+
+        // Update local state
+        setState(() {
+          _contacts.removeWhere((c) => _selectedContactIds.contains(c.id));
+          _selectedContactIds.clear();
+          _isSelectionMode = false;
+          _performSearch(_searchController.text);
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  '${_selectedContacts.length} contact${_selectedContacts.length > 1 ? 's' : ''} deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete contacts: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   /// Navigate to add contact page
   void _navigateToAddContact() {
     Navigator.pushNamed(context, AppRoutes.addContact).then((_) {
@@ -117,14 +246,18 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
 
   /// Navigate to contact profile page
   void _navigateToContactProfile(Contact contact) {
-    Navigator.pushNamed(
-      context,
-      AppRoutes.contactProfile,
-      arguments: {'contactId': contact.id},
-    ).then((_) {
-      // Refresh contacts when returning from contact profile
-      _loadContacts();
-    });
+    if (_isSelectionMode) {
+      _toggleContactSelection(contact.id);
+    } else {
+      Navigator.pushNamed(
+        context,
+        AppRoutes.contactProfile,
+        arguments: {'contactId': contact.id},
+      ).then((_) {
+        // Refresh contacts when returning from contact profile
+        _loadContacts();
+      });
+    }
   }
 
   /// Toggle contact favorite status
@@ -201,7 +334,27 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Contacts'),
+        title: _isSelectionMode
+            ? Text('${_selectedContactIds.length} selected')
+            : const Text('Contacts'),
+        actions: [
+          if (_isSelectionMode) ...[
+            // Delete selected button
+            if (_selectedContactIds.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: _bulkDeleteContacts,
+                tooltip: 'Delete selected',
+              ),
+          ] else ...[
+            // Selection mode toggle
+            IconButton(
+              icon: const Icon(Icons.select_all),
+              onPressed: _toggleSelectionMode,
+              tooltip: 'Select contacts',
+            ),
+          ],
+        ],
       ),
       body: Column(
         children: [
@@ -236,9 +389,54 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToAddContact,
-        child: const Icon(Icons.add),
+      floatingActionButton: _isSelectionMode
+          ? null
+          : FloatingActionButton(
+              onPressed: _navigateToAddContact,
+              child: const Icon(Icons.add),
+            ),
+      bottomNavigationBar: _isSelectionMode ? _buildSelectionBottomBar() : null,
+    );
+  }
+
+  /// Build bottom bar for selection mode
+  Widget _buildSelectionBottomBar() {
+    return BottomAppBar(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            TextButton.icon(
+              onPressed: _selectedContactIds.length == _filteredContacts.length
+                  ? _deselectAllContacts
+                  : _selectAllContacts,
+              icon: Icon(
+                _selectedContactIds.length == _filteredContacts.length
+                    ? Icons.check_box
+                    : Icons.select_all,
+              ),
+              label: Text(
+                _selectedContactIds.length == _filteredContacts.length
+                    ? 'Deselect All'
+                    : 'Select All',
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: MyApp.primaryColor,
+              ),
+            ),
+            const Spacer(),
+            if (_selectedContactIds.isNotEmpty)
+              ElevatedButton.icon(
+                onPressed: _bulkDeleteContacts,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.delete),
+                label: Text('Delete (${_selectedContactIds.length})'),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -322,17 +520,26 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
 
   /// Build individual contact tile
   Widget _buildContactTile(Contact contact) {
+    final isSelected = _selectedContactIds.contains(contact.id);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      color: isSelected ? Colors.grey.shade200 : null,
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: contact.isFavorite ? Colors.amber : Colors.blue,
-          child: Text(
-            contact.name.isNotEmpty ? contact.name[0].toUpperCase() : '?',
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
+        leading: _isSelectionMode
+            ? Checkbox(
+                value: isSelected,
+                onChanged: (value) => _toggleContactSelection(contact.id),
+              )
+            : CircleAvatar(
+                backgroundColor:
+                    contact.isFavorite ? Colors.amber : MyApp.primaryColor,
+                child: Text(
+                  contact.name.isNotEmpty ? contact.name[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
         title: Text(
           contact.name,
           style: TextStyle(
@@ -346,60 +553,64 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
             if (contact.email.isNotEmpty) Text(contact.email),
           ],
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (contact.chamberMember)
-              const Icon(Icons.business, color: Colors.green, size: 20),
-            if (contact.isBlocked)
-              const Icon(Icons.block, color: Colors.red, size: 20),
-            IconButton(
-              icon: Icon(
-                contact.isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: contact.isFavorite ? Colors.amber : null,
+        trailing: _isSelectionMode
+            ? null
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (contact.chamberMember)
+                    const Icon(Icons.business, color: Colors.green, size: 20),
+                  if (contact.isBlocked)
+                    const Icon(Icons.block, color: Colors.red, size: 20),
+                  IconButton(
+                    icon: Icon(
+                      contact.isFavorite
+                          ? Icons.favorite
+                          : Icons.favorite_border,
+                      color: contact.isFavorite ? Colors.amber : null,
+                    ),
+                    onPressed: () => _toggleFavorite(contact),
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'edit':
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.editContact,
+                            arguments: contact,
+                          ).then((_) => _loadContacts());
+                          break;
+                        case 'delete':
+                          _deleteContact(contact);
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit),
+                            SizedBox(width: 8),
+                            Text('Edit'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              onPressed: () => _toggleFavorite(contact),
-            ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                switch (value) {
-                  case 'edit':
-                    Navigator.pushNamed(
-                      context,
-                      AppRoutes.editContact,
-                      arguments: contact,
-                    ).then((_) => _loadContacts());
-                    break;
-                  case 'delete':
-                    _deleteContact(contact);
-                    break;
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit),
-                      SizedBox(width: 8),
-                      Text('Edit'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Delete', style: TextStyle(color: Colors.red)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
         onTap: () => _navigateToContactProfile(contact),
       ),
     );

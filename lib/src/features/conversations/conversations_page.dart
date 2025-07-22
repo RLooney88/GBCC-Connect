@@ -4,6 +4,7 @@ import '../../core/services/service_manager.dart';
 import '../../core/models/conversation.dart';
 import '../../core/routes/app_routes.dart';
 import '../../app.dart';
+import '../../core/models/contact.dart';
 
 class ConversationsPage extends StatefulWidget {
   final User user;
@@ -28,6 +29,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
   final Set<String> _deletingConversations = {};
   bool _isSelectionMode = false;
   final Set<String> _selectedConversations = {};
+  Map<String, bool> _participantRegistrationStatus = {};
 
   @override
   void initState() {
@@ -50,10 +52,11 @@ class _ConversationsPageState extends State<ConversationsPage> {
       // Use the ServiceManager provided by AuthenticatedPageWrapper
       final serviceManager = widget.serviceManager;
 
-      // Set up real-time streaming for conversations
+      // Set up real-time streaming for conversations using email
+      // This will show conversations where the user is either owner or participant
       _conversationsStream =
           serviceManager.conversationService.streamConversationsForUser(
-        currentUser.id,
+        currentUser.email, // Use email for conversation lookup
       );
 
       setState(() {
@@ -624,6 +627,10 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final isDeleting = _deletingConversations.contains(conversation.id);
     final isSelected = _selectedConversations.contains(conversation.id);
 
+    // Check if participant is registered (if we have participant data)
+    final isParticipantRegistered = conversation.participant != null &&
+        conversation.participant!.id.isNotEmpty;
+
     Widget tileContent = Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       elevation: 2,
@@ -646,12 +653,51 @@ class _ConversationsPageState extends State<ConversationsPage> {
                           color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
-            title: Text(displayName,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(
-              lastMessage,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(displayName,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                if (!isParticipantRegistered)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Email',
+                      style: TextStyle(
+                        color: Colors.orange[800],
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  lastMessage,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (!isParticipantRegistered)
+                  Text(
+                    'Contact not registered - messages sent via email',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+              ],
             ),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -680,11 +726,53 @@ class _ConversationsPageState extends State<ConversationsPage> {
             ),
             onTap: _isSelectionMode
                 ? () => _toggleConversationSelection(conversation.id)
-                : () {
+                : () async {
+                    // Get the contact details for navigation
+                    String? contactId;
+
+                    // If participant is a registered user, try to find their contact
+                    if (conversation.participant != null) {
+                      // Try to find contact by email
+                      final contacts = await widget
+                          .serviceManager.contactService
+                          .getContactsByOwner(widget.user.id);
+
+                      final contact = contacts.firstWhere(
+                        (c) => c.email == conversation.participant!.email,
+                        orElse: () => Contact(
+                          id: '',
+                          ownerId: widget.user.id,
+                          owner: widget.user,
+                          name: conversation.participant!.name ?? '',
+                          displayName:
+                              conversation.participant!.displayName ?? '',
+                          email: conversation.participant!.email,
+                          phone: conversation.participant!.phone,
+                          company: conversation.participant!.company,
+                          website: conversation.participant!.website,
+                          position: conversation.participant!.title,
+                          notes: conversation.participant!.notes,
+                          isFavorite: false,
+                          isBlocked: false,
+                          chamberMember:
+                              conversation.participant!.chamberMember,
+                          createdAt: DateTime.now(),
+                          updatedAt: DateTime.now(),
+                        ),
+                      );
+
+                      contactId = contact.id.isNotEmpty ? contact.id : null;
+                    }
+
+                    // If no contact found, use participant email as fallback
+                    if (contactId == null || contactId.isEmpty) {
+                      contactId = conversation.participantId;
+                    }
+
                     Navigator.pushNamed(
                       context,
                       AppRoutes.chat,
-                      arguments: {'chatId': user.id},
+                      arguments: {'chatId': contactId},
                     );
                   },
             onLongPress: _isSelectionMode
