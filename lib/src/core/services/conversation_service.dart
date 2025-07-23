@@ -70,7 +70,6 @@ class ConversationService {
         owner: ownerUser,
         participant: participantUser,
         lastMessage: null,
-        unreadCount: 0,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         isActive: true,
@@ -431,22 +430,6 @@ class ConversationService {
     if (conversation.participantId.isEmpty) return false;
     if (conversation.ownerId == conversation.participantId) return false;
     return true;
-  }
-
-  /// Get conversation statistics
-  Future<Map<String, int>> getConversationStats(String userIdentifier) async {
-    try {
-      final conversations = await _getConversationsForUser(userIdentifier);
-
-      return {
-        'total': conversations.length,
-        'active': conversations.where((c) => c.isActive).length,
-        'unread': conversations.where((c) => c.unreadCount > 0).length,
-        'archived': conversations.where((c) => !c.isActive).length,
-      };
-    } catch (e) {
-      throw Exception('Failed to get conversation stats: $e');
-    }
   }
 
   /// Get conversations for a user (non-streaming)

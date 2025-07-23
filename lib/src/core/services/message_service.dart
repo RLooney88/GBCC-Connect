@@ -441,4 +441,34 @@ class MessageService {
       throw Exception('Failed to get message stats: $e');
     }
   }
+
+  /// Get unread messages count
+  /// If fromEmail is provided, counts messages from that specific sender
+  /// If fromEmail is not provided, counts all unread messages for the recipient
+  Future<int> unreadMessages(String toEmail, {String? fromEmail}) async {
+    try {
+      int totalCount = 0;
+
+      // Query for messages with status 'sent'
+      List<MapEntry<String, dynamic>> sentFilters = [
+        MapEntry('to', toEmail),
+        MapEntry('status', MessageStatus.sent.name),
+      ];
+
+      if (fromEmail != null) {
+        sentFilters.add(MapEntry('from', fromEmail));
+      }
+
+      final sentQuery = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: sentFilters,
+      );
+
+      totalCount += sentQuery.docs.length;
+
+      return totalCount;
+    } catch (e) {
+      throw Exception('Failed to get unread messages count: $e');
+    }
+  }
 }

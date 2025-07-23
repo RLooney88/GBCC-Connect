@@ -10,7 +10,6 @@ class Conversation {
   final User? owner; // Owner user object
   final User? participant; // Participant user object
   final Message? lastMessage;
-  final int unreadCount;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isActive; // Whether the conversation is active/archived
@@ -22,7 +21,6 @@ class Conversation {
     this.owner,
     this.participant,
     this.lastMessage,
-    this.unreadCount = 0,
     required this.createdAt,
     required this.updatedAt,
     this.isActive = true,
@@ -71,7 +69,6 @@ class Conversation {
       owner: owner,
       participant: participant,
       lastMessage: lastMessage,
-      unreadCount: json['unreadCount'] ?? 0,
       createdAt: _parseDateTime(json['createdAt']),
       updatedAt: _parseDateTime(json['updatedAt']),
       isActive: json['isActive'] ?? true,
@@ -116,7 +113,6 @@ class Conversation {
     final json = {
       'ownerId': ownerId,
       'participantId': participantId,
-      'unreadCount': unreadCount,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'isActive': isActive,
@@ -152,7 +148,6 @@ class Conversation {
     User? owner,
     User? participant,
     Message? lastMessage,
-    int? unreadCount,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isActive,
@@ -164,7 +159,6 @@ class Conversation {
       owner: owner ?? this.owner,
       participant: participant ?? this.participant,
       lastMessage: lastMessage ?? this.lastMessage,
-      unreadCount: unreadCount ?? this.unreadCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isActive: isActive ?? this.isActive,

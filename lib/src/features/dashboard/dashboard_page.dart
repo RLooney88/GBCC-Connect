@@ -99,9 +99,14 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   Future<int> _getUnreadMessageCount() async {
-    final count = await widget.serviceManager.conversationService
-        .getConversationStats(widget.user.id);
-    return count['unread'] ?? 0;
+    try {
+      final count = await widget.serviceManager.messageService
+          .unreadMessages(widget.user.email);
+      return count;
+    } catch (e) {
+      debugPrint('Dashboard: Error getting unread message count: $e');
+      return 0;
+    }
   }
 
   @override
