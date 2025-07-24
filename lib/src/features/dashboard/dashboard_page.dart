@@ -29,6 +29,7 @@ class _DashboardPageState extends State<DashboardPage>
   int _unreadMessageCount = 0;
   bool _isLoadingStats = false;
   Stream<int>? _unreadMessagesStream;
+  Stream<int>? _contactsStream;
 
   @override
   void initState() {
@@ -59,8 +60,11 @@ class _DashboardPageState extends State<DashboardPage>
     debugPrint('Dashboard: Setting up real-time listeners');
     // Set up real-time listener for unread messages
     _unreadMessagesStream = _getUnreadMessagesStream();
-    // Get initial count as fallback
+    // Set up real-time listener for contacts count
+    _contactsStream = _getContactsStream();
+    // Get initial counts as fallback
     _getInitialUnreadCount();
+    _getInitialContactsCount();
   }
 
   Stream<int> _getUnreadMessagesStream() {
@@ -69,6 +73,14 @@ class _DashboardPageState extends State<DashboardPage>
     // Create a stream that listens to message status changes
     return widget.serviceManager.messageService
         .streamUnreadMessageCount(widget.user.email);
+  }
+
+  Stream<int> _getContactsStream() {
+    debugPrint(
+        'Dashboard: Creating contacts stream for user: ${widget.user.id}');
+    // Create a stream that listens to contact changes
+    return widget.serviceManager.contactService
+        .streamContactCount(widget.user.id);
   }
 
   Future<void> _getInitialUnreadCount() async {
@@ -85,6 +97,23 @@ class _DashboardPageState extends State<DashboardPage>
       }
     } catch (e) {
       debugPrint('Dashboard: Error getting initial unread count: $e');
+    }
+  }
+
+  Future<void> _getInitialContactsCount() async {
+    try {
+      debugPrint(
+          'Dashboard: Getting initial contacts count for user: ${widget.user.id}');
+      final initialCount = await widget.serviceManager.contactService
+          .getInitialContactCount(widget.user.id);
+      debugPrint('Dashboard: Initial contacts count: $initialCount');
+      if (mounted) {
+        setState(() {
+          _contacts = initialCount;
+        });
+      }
+    } catch (e) {
+      debugPrint('Dashboard: Error getting initial contacts count: $e');
     }
   }
 
@@ -108,9 +137,16 @@ class _DashboardPageState extends State<DashboardPage>
         return _unreadMessageCount; // Keep current value on error
       });
 
+      // Also refresh contacts count for pull-to-refresh
+      final refreshedContactsCount = await widget.serviceManager.contactService
+          .getInitialContactCount(widget.user.id)
+          .catchError((e) {
+        return _contacts; // Keep current value on error
+      });
+
       if (mounted) {
         setState(() {
-          _contacts = contactsCount;
+          _contacts = refreshedContactsCount;
           _unreadMessageCount = unreadCount;
           _isLoadingStats = false;
         });
@@ -298,12 +334,7 @@ class _DashboardPageState extends State<DashboardPage>
         Row(
           children: [
             Expanded(
-              child: _buildStatCard(
-                'Total Contacts',
-                _contacts.toString(),
-                Icons.people,
-                MyApp.primaryColor,
-              ),
+              child: _buildContactsCard(),
             ),
             SizedBox(width: 12),
             Expanded(
@@ -312,6 +343,48 @@ class _DashboardPageState extends State<DashboardPage>
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildContactsCard() {
+    if (_contactsStream == null) {
+      debugPrint(
+          'Dashboard: Contacts stream is null, using fallback count: $_contacts');
+      return _buildStatCard(
+        'Total Contacts',
+        _contacts.toString(),
+        Icons.people,
+        MyApp.primaryColor,
+      );
+    }
+
+    return StreamBuilder<int>(
+      stream: _contactsStream,
+      builder: (context, snapshot) {
+        int contactsCount = 0;
+        bool isLoading = false;
+
+        if (snapshot.hasData) {
+          contactsCount = snapshot.data!;
+          debugPrint(
+              'Dashboard: Contacts stream received data - count: $contactsCount');
+        } else if (snapshot.hasError) {
+          contactsCount = _contacts; // Fallback to previous value
+          debugPrint(
+              'Dashboard: Contacts stream error - using fallback count: $contactsCount');
+        } else {
+          isLoading = true;
+          debugPrint('Dashboard: Contacts stream loading...');
+        }
+
+        return _buildStatCard(
+          'Total Contacts',
+          contactsCount.toString(),
+          Icons.people,
+          MyApp.primaryColor,
+          isLoading: isLoading,
+        );
+      },
     );
   }
 

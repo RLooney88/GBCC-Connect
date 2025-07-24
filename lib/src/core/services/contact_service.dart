@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/contact.dart';
 import '../models/user.dart';
 import '../providers/firebase_provider.dart';
@@ -229,6 +230,43 @@ class ContactService {
       });
     } catch (e) {
       throw Exception('Failed to stream contacts: $e');
+    }
+  }
+
+  /// Stream contact count in real-time
+  /// This method creates a stream that listens to contact changes
+  /// and automatically updates the count when contacts are added or removed
+  Stream<int> streamContactCount(String ownerId) {
+    try {
+      debugPrint(
+          'ContactService: Setting up contact count stream for owner: $ownerId');
+
+      final filters = [MapEntry('ownerId', ownerId)];
+      return _firebaseProvider!
+          .listenToCollection(
+        _collection,
+        filters: filters,
+      )
+          .map((snapshot) {
+        final count = snapshot.docs.length;
+        debugPrint(
+            'ContactService: Stream update - contact count: $count for owner: $ownerId');
+        return count;
+      });
+    } catch (e) {
+      debugPrint('ContactService: Error in contact count stream: $e');
+      // Return a stream with error count (0) if there's an error
+      return Stream.value(0);
+    }
+  }
+
+  /// Get initial contact count (for fallback)
+  Future<int> getInitialContactCount(String ownerId) async {
+    try {
+      final stats = await getContactStats(ownerId);
+      return stats['total'] ?? 0;
+    } catch (e) {
+      return 0;
     }
   }
 
