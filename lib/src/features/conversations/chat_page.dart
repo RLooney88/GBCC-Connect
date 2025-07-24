@@ -526,7 +526,7 @@ class _ChatPageState extends State<ChatPage> {
                 Future.delayed(const Duration(milliseconds: 300), () {
                   if (_scrollController.hasClients) {
                     _scrollController.animateTo(
-                      _scrollController.position.maxScrollExtent,
+                      _scrollController.position.minScrollExtent,
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeOut,
                     );
@@ -566,7 +566,7 @@ class _ChatPageState extends State<ChatPage> {
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        _scrollController.position.minScrollExtent,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
