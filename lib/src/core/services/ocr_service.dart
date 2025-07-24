@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:dio/dio.dart';
 import '../config/ocr_config.dart';
 import 'package:flutter/foundation.dart'; // Added for debugPrint
 
@@ -14,6 +16,13 @@ class OCRService {
   final OCRConfig _config = OCRConfig.instance;
   TextRecognizer? _textRecognizer;
   bool _mlKitAvailable = false;
+
+  // HTTP client for OpenAI API calls
+  final Dio _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 30),
+    sendTimeout: const Duration(seconds: 30),
+  ));
 
   /// Initialize the text recognizer
   Future<void> _initializeTextRecognizer() async {
@@ -237,6 +246,145 @@ class OCRService {
       socialMedia: socialMedia,
       rawText: rawText,
     );
+  }
+
+  /// Parse business card text using OpenAI for enhanced accuracy
+  Future<BusinessCardData> parseBusinessCardTextWithOpenAI(
+      String rawText) async {
+    try {
+      // Check if OpenAI is configured
+      if (!_config.isOpenAIConfigured) {
+        debugPrint(
+            'OpenAI API key not configured, falling back to regex parsing');
+        return parseBusinessCardText(rawText);
+      }
+
+      debugPrint('Attempting OpenAI parsing for business card text...');
+
+      final prompt = '''
+Please parse the following business card text and extract structured contact information. Return the result as a JSON object with the following fields:
+- name: Full name of the person (string)
+- email: Email address (string)
+- phone: Phone number in international format (string)
+- company: Company name (string)
+- position: Job title/position (string)
+- website: Website URL (string)
+- address: Physical address if present (string)
+- socialMedia: Array of social media URLs (array of strings)
+
+Guidelines:
+- Extract the most prominent name as the full name
+- Normalize phone numbers to international format
+- Identify company names and job titles accurately
+- Include all social media links found (LinkedIn, Facebook, Twitter, Instagram, etc.)
+- If a field is not found, use empty string
+- Return only valid JSON, no additional text
+
+Business card text:
+$rawText
+
+Return only the JSON object, no additional text or explanations.
+''';
+
+      final response = await _dio.post(
+        'https://api.openai.com/v1/chat/completions',
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${_config.openaiApiKey}',
+          },
+        ),
+        data: {
+          'model': 'gpt-3.5-turbo',
+          'messages': [
+            {
+              'role': 'system',
+              'content':
+                  'You are a business card parser. Extract contact information accurately and return it as JSON. Always return valid JSON format.',
+            },
+            {
+              'role': 'user',
+              'content': prompt,
+            },
+          ],
+          'max_tokens': 800,
+          'temperature': 0.1,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final content = data['choices'][0]['message']['content'];
+
+        debugPrint('OpenAI response received: ${content.length} characters');
+
+        // Extract JSON from the response
+        final jsonMatch =
+            RegExp(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', dotAll: true)
+                .firstMatch(content);
+
+        if (jsonMatch != null) {
+          try {
+            final jsonData = jsonDecode(jsonMatch.group(0)!);
+
+            final parsedData = BusinessCardData(
+              name: jsonData['name']?.toString() ?? '',
+              email: jsonData['email']?.toString() ?? '',
+              phone: jsonData['phone']?.toString() ?? '',
+              company: jsonData['company']?.toString() ?? '',
+              position: jsonData['position']?.toString() ?? '',
+              website: jsonData['website']?.toString() ?? '',
+              address: jsonData['address']?.toString() ?? '',
+              socialMedia: List<String>.from(jsonData['socialMedia'] ?? []),
+              rawText: rawText,
+            );
+
+            debugPrint(
+                'OpenAI parsing successful: ${parsedData.name}, ${parsedData.email}, ${parsedData.company}');
+            return parsedData;
+          } catch (jsonError) {
+            debugPrint('Failed to parse JSON from OpenAI response: $jsonError');
+            debugPrint('Raw response: $content');
+            throw Exception(
+                'Failed to parse JSON from OpenAI response: $jsonError');
+          }
+        } else {
+          debugPrint('No JSON found in OpenAI response');
+          debugPrint('Raw response: $content');
+          throw Exception('No JSON found in OpenAI response');
+        }
+      } else {
+        debugPrint(
+            'OpenAI API error: ${response.statusCode} - ${response.statusMessage}');
+        throw Exception('OpenAI API error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('OpenAI parsing failed: $e');
+      // Fallback to regex parsing
+      debugPrint('Falling back to regex parsing...');
+      return parseBusinessCardText(rawText);
+    }
+  }
+
+  /// Parse business card text with AI enhancement if available
+  Future<BusinessCardData> parseBusinessCardTextEnhanced(String rawText) async {
+    try {
+      // Try OpenAI parsing first if configured
+      if (_config.hasEnhancedFeatures) {
+        debugPrint('Attempting OpenAI parsing for business card text...');
+        try {
+          return await parseBusinessCardTextWithOpenAI(rawText);
+        } catch (e) {
+          debugPrint('OpenAI parsing failed, using regex fallback: $e');
+        }
+      }
+
+      // Fallback to regex-based parsing
+      return parseBusinessCardText(rawText);
+    } catch (e) {
+      debugPrint('Enhanced parsing failed: $e');
+      throw Exception('Failed to parse business card text: $e');
+    }
   }
 
   /// Dispose resources
