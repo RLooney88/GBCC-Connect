@@ -7,7 +7,7 @@ publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.5.3 # >=3.0.0 <4.0.0
+  sdk: ">=3.5.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -15,85 +15,58 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  # State Management
-  provider: ^6.1.1
+  # # State Management
+  provider: ^6.1.5
 
-  # Local Storage
+  # # Local Storage
   shared_preferences: ^2.2.2
 
-  # HTTP Client
-  http: ^1.1.0
+  # # HTTP Client
+  http: ^1.4.0
 
-  # Image Handling
-  image_picker: ^1.0.4
-  cached_network_image: ^3.3.0
+  # # Image Handling
+  image_picker: ^1.1.2
+  cached_network_image: ^3.3.1
 
   # OCR for Business Card Scanning
   google_mlkit_text_recognition: ^0.15.0
 
-  # Image Processing for OCR
-  image: ^4.1.7
+  # # Image Processing for OCR
+  image: ^4.5.4
 
-  # Path utilities
-  path_provider: ^2.1.2
+  # # Path utilities
+  path_provider: ^2.1.5
   path: ^1.9.0
 
-  # OpenAI Integration for AI-enhanced parsing
-  dio: ^5.4.0
+  # # HTTP Client (you already have dio, keeping both for flexibility)
+  dio: ^5.5.0
 
-  # Firebase Core
-  firebase_core: ^3.0.0
-
-  # Firebase Authentication
-  firebase_auth: ^5.0.0
-
-  # Google Sign-In
-  google_sign_in: ^6.1.6
-
-  # Apple Sign-In
-  sign_in_with_apple: ^7.0.1
-
-  # Cloud Firestore
-  cloud_firestore: ^5.0.0
-
-  # Firebase Storage
-  firebase_storage: ^12.0.0
-
-  # Firebase Analytics
-  firebase_analytics: ^11.0.0
-
-  # Firebase Crashlytics
-  firebase_crashlytics: ^4.0.0
-
-  # Firebase Performance
-  firebase_performance: ^0.10.0
-
-  # Firebase Remote Config
-  firebase_remote_config: ^5.0.0
-
-  # Firebase Cloud Messaging
-  firebase_messaging: ^15.0.0
-
-  # Firebase Functions
-  cloud_functions: ^5.0.0
-
-  # Environment Configuration
-  flutter_dotenv: ^5.1.0
-
-  # Secure Storage
-  flutter_secure_storage: ^9.0.0
-
-  # Network Connectivity
+  # # Firebase Functions
+  cloud_functions: ^4.5.8
+  # # Environment Configuration
+  flutter_dotenv: ^5.2.1
+  # # Secure Storage
+  flutter_secure_storage: ^9.2.4
+  # # Network Connectivity
   connectivity_plus: ^6.1.4
-
-  # Device Info
-  device_info_plus: ^11.3.0
-
-  # URL Launcher
-  url_launcher: ^6.2.4
-
-  # Icons
-  font_awesome_flutter: ^10.7.0
+  # # Device Info
+  device_info_plus: ^10.1.2
+  # # URL Launcher
+  url_launcher: ^6.3.1
+  # # Icons
+  font_awesome_flutter: ^10.8.0
+  # # Firebase
+  firebase_performance: ^0.9.3+8
+  firebase_crashlytics: ^3.4.19
+  firebase_analytics: ^10.9.0
+  firebase_storage: ^11.6.10
+  cloud_firestore: ^4.15.5
+  sign_in_with_apple: ^7.0.1
+  google_sign_in: ^6.2.2
+  firebase_auth: ^4.17.5
+  firebase_core: ^2.24.2
+  firebase_remote_config: ^4.3.8
+  firebase_messaging: ^14.7.20
 
 dev_dependencies:
   flutter_test:

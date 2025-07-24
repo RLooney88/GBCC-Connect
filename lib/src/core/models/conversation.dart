@@ -204,7 +204,7 @@ class Conversation {
   String getDisplayName(String currentUserId) {
     final otherUser = getOtherUser(currentUserId);
     return otherUser?.displayName ??
-        otherUser?.email ??
+        otherUser?.name ??
         AppConstants.defaultDisplayName;
   }
 }

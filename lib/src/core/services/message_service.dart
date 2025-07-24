@@ -234,7 +234,7 @@ class MessageService {
       final filters = [
         MapEntry('conversationId', conversation.id),
         MapEntry('to', user1Email),
-        MapEntry('status', MessageStatus.delivered.name),
+        MapEntry('status', MessageStatus.sent.name),
       ];
 
       final messagesQuery = await _firebaseProvider!.getDocuments(

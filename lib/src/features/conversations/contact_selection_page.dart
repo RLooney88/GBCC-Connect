@@ -158,7 +158,7 @@ class _ContactSelectionPageState extends State<ContactSelectionPage> {
 
   void _startChatWithRegisteredUser(Contact contact) {
     // Use the contact ID for navigation
-    final contactId = contact.id;
+    final contactId = contact.email;
 
     Navigator.pushNamed(
       context,
