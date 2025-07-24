@@ -639,7 +639,8 @@ class _ConversationsPageState extends State<ConversationsPage> {
     final avatar = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
     final lastMessage = conversation.lastMessage?.content ?? 'No messages yet';
     final time = _formatTime(conversation.updatedAt);
-    final unreadCount = 0;
+    final unreadCount =
+        conversation.unreadCount; // Use the unread count from conversation
     final isDeleting = _deletingConversations.contains(conversation.id);
     final isSelected = _selectedConversations.contains(conversation.id);
 

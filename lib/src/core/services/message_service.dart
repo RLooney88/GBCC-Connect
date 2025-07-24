@@ -220,15 +220,24 @@ class MessageService {
     String user2Email,
   ) async {
     try {
+      debugPrint(
+          'MessageService: Marking messages as read between $user1Email and $user2Email');
+
       final conversation = await _conversationService!.getConversationByEmail(
         user1Email,
         user2Email,
       );
 
-      if (conversation == null) return;
+      if (conversation == null) {
+        debugPrint('MessageService: No conversation found');
+        return;
+      }
+
+      debugPrint('MessageService: Found conversation: ${conversation.id}');
 
       // Mark conversation as read using ConversationService
       await _conversationService!.markConversationAsRead(conversation.id);
+      debugPrint('MessageService: Conversation marked as read');
 
       // Update message status to read
       final filters = [
@@ -242,6 +251,9 @@ class MessageService {
         filters: filters,
       );
 
+      debugPrint(
+          'MessageService: Found ${messagesQuery.docs.length} messages to mark as read');
+
       for (final doc in messagesQuery.docs) {
         await _firebaseProvider!.updateDocument(
           _collection,
@@ -249,7 +261,10 @@ class MessageService {
           {'status': MessageStatus.read.name},
         );
       }
+
+      debugPrint('MessageService: All messages marked as read');
     } catch (e) {
+      debugPrint('MessageService: Error marking messages as read: $e');
       throw Exception('Failed to mark messages as read: $e');
     }
   }
@@ -469,6 +484,62 @@ class MessageService {
       return totalCount;
     } catch (e) {
       throw Exception('Failed to get unread messages count: $e');
+    }
+  }
+
+  /// Stream unread message count in real-time
+  /// This method creates a stream that listens to message status changes
+  /// and automatically updates the unread count when messages are marked as read
+  Stream<int> streamUnreadMessageCount(String toEmail, {String? fromEmail}) {
+    try {
+      // Listen to ALL messages for the user (not just sent ones)
+      // This ensures we detect when messages change from "sent" to "read"
+      List<MapEntry<String, dynamic>> filters = [
+        MapEntry('to', toEmail),
+      ];
+
+      if (fromEmail != null) {
+        filters.add(MapEntry('from', fromEmail));
+      }
+
+      debugPrint('MessageService: Setting up stream for user: $toEmail');
+
+      // Listen to messages collection with filters
+      return _firebaseProvider!
+          .listenToCollection(
+        _collection,
+        filters: filters,
+        orderBy: 'timestamp',
+        descending: true,
+      )
+          .map((snapshot) {
+        // Count only messages with "sent" status (unread messages)
+        int unreadCount = 0;
+        for (final doc in snapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final status = data['status'] as String?;
+          if (status == MessageStatus.sent.name) {
+            unreadCount++;
+          }
+        }
+
+        debugPrint(
+            'MessageService: Stream update - unread count: $unreadCount for user: $toEmail');
+        return unreadCount;
+      });
+    } catch (e) {
+      debugPrint('MessageService: Error in stream: $e');
+      // Return a stream with error count (0) if there's an error
+      return Stream.value(0);
+    }
+  }
+
+  /// Get initial unread message count (for fallback)
+  Future<int> getInitialUnreadCount(String toEmail, {String? fromEmail}) async {
+    try {
+      return await unreadMessages(toEmail, fromEmail: fromEmail);
+    } catch (e) {
+      return 0;
     }
   }
 }

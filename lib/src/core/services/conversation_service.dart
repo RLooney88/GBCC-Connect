@@ -2,6 +2,7 @@ import '../models/conversation.dart';
 import '../models/user.dart';
 import '../models/message.dart';
 import '../providers/firebase_provider.dart';
+import 'package:flutter/foundation.dart';
 
 /// Domain/Business Logic Layer: ConversationService
 /// Mission: Implement conversation-specific logic and transform data for the UI
@@ -99,18 +100,29 @@ class ConversationService {
       final conversationId =
           _generateConversationId(ownerEmail, participantEmail);
 
+      debugPrint(
+          'ConversationService: Looking for conversation with ID: $conversationId');
+      debugPrint(
+          'ConversationService: Between $ownerEmail and $participantEmail');
+
       final doc = await _firebaseProvider!.getDocument(
         _collection,
         conversationId,
       );
 
-      if (doc == null || !doc.exists) return null;
+      if (doc == null || !doc.exists) {
+        debugPrint(
+            'ConversationService: No conversation found with ID: $conversationId');
+        return null;
+      }
 
+      debugPrint('ConversationService: Found conversation: ${doc.id}');
       return Conversation.fromJson({
         'id': doc.id,
         ...(doc.data() as Map<String, dynamic>),
       });
     } catch (e) {
+      debugPrint('ConversationService: Error getting conversation: $e');
       throw Exception('Failed to get conversation: $e');
     }
   }
@@ -266,6 +278,9 @@ class ConversationService {
   /// Mark conversation as read
   Future<void> markConversationAsRead(String conversationId) async {
     try {
+      debugPrint(
+          'ConversationService: Marking conversation as read: $conversationId');
+
       await _firebaseProvider!.updateDocument(
         _collection,
         conversationId,
@@ -274,7 +289,11 @@ class ConversationService {
           'updatedAt': DateTime.now().toIso8601String(),
         },
       );
+
+      debugPrint(
+          'ConversationService: Conversation marked as read successfully');
     } catch (e) {
+      debugPrint('ConversationService: Error marking conversation as read: $e');
       throw Exception('Failed to mark conversation as read: $e');
     }
   }

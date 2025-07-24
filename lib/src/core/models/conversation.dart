@@ -13,6 +13,7 @@ class Conversation {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isActive; // Whether the conversation is active/archived
+  final int unreadCount; // Number of unread messages
 
   Conversation({
     required this.id,
@@ -24,6 +25,7 @@ class Conversation {
     required this.createdAt,
     required this.updatedAt,
     this.isActive = true,
+    this.unreadCount = 0,
   });
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
@@ -72,6 +74,7 @@ class Conversation {
       createdAt: _parseDateTime(json['createdAt']),
       updatedAt: _parseDateTime(json['updatedAt']),
       isActive: json['isActive'] ?? true,
+      unreadCount: json['unreadCount'] ?? 0,
     );
   }
 
@@ -116,6 +119,7 @@ class Conversation {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'isActive': isActive,
+      'unreadCount': unreadCount,
     };
 
     // Only include ID if it's not empty
@@ -151,6 +155,7 @@ class Conversation {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isActive,
+    int? unreadCount,
   }) {
     return Conversation(
       id: id ?? this.id,
@@ -162,6 +167,7 @@ class Conversation {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isActive: isActive ?? this.isActive,
+      unreadCount: unreadCount ?? this.unreadCount,
     );
   }
 

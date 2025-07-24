@@ -28,6 +28,7 @@ class _DashboardPageState extends State<DashboardPage>
   int _contacts = 0;
   int _unreadMessageCount = 0;
   bool _isLoadingStats = false;
+  Stream<int>? _unreadMessagesStream;
 
   @override
   void initState() {
@@ -35,6 +36,7 @@ class _DashboardPageState extends State<DashboardPage>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadStats();
+      _setupRealTimeListeners();
     });
   }
 
@@ -53,6 +55,39 @@ class _DashboardPageState extends State<DashboardPage>
     }
   }
 
+  void _setupRealTimeListeners() {
+    debugPrint('Dashboard: Setting up real-time listeners');
+    // Set up real-time listener for unread messages
+    _unreadMessagesStream = _getUnreadMessagesStream();
+    // Get initial count as fallback
+    _getInitialUnreadCount();
+  }
+
+  Stream<int> _getUnreadMessagesStream() {
+    debugPrint(
+        'Dashboard: Creating unread messages stream for user: ${widget.user.email}');
+    // Create a stream that listens to message status changes
+    return widget.serviceManager.messageService
+        .streamUnreadMessageCount(widget.user.email);
+  }
+
+  Future<void> _getInitialUnreadCount() async {
+    try {
+      debugPrint(
+          'Dashboard: Getting initial unread count for user: ${widget.user.email}');
+      final initialCount = await widget.serviceManager.messageService
+          .getInitialUnreadCount(widget.user.email);
+      debugPrint('Dashboard: Initial unread count: $initialCount');
+      if (mounted) {
+        setState(() {
+          _unreadMessageCount = initialCount;
+        });
+      }
+    } catch (e) {
+      debugPrint('Dashboard: Error getting initial unread count: $e');
+    }
+  }
+
   Future<void> _loadStats() async {
     if (!mounted) return;
 
@@ -61,24 +96,22 @@ class _DashboardPageState extends State<DashboardPage>
     });
 
     try {
-      // Load stats independently to handle failures gracefully
-      final contactsFuture = _getContacts().catchError((e) {
+      // Load contacts count (this doesn't change frequently, so no need for real-time)
+      final contactsCount = await _getContacts().catchError((e) {
         return 0;
       });
 
-      final unreadMessagesFuture = _getUnreadMessageCount().catchError((e) {
-        return 0;
+      // Also refresh unread count for pull-to-refresh
+      final unreadCount = await widget.serviceManager.messageService
+          .getInitialUnreadCount(widget.user.email)
+          .catchError((e) {
+        return _unreadMessageCount; // Keep current value on error
       });
-
-      final results = await Future.wait([
-        contactsFuture,
-        unreadMessagesFuture,
-      ]);
 
       if (mounted) {
         setState(() {
-          _contacts = results[0];
-          _unreadMessageCount = results[1];
+          _contacts = contactsCount;
+          _unreadMessageCount = unreadCount;
           _isLoadingStats = false;
         });
       }
@@ -96,17 +129,6 @@ class _DashboardPageState extends State<DashboardPage>
     final stats = await widget.serviceManager.contactService
         .getContactStats(widget.user.id);
     return stats['total'] ?? 0;
-  }
-
-  Future<int> _getUnreadMessageCount() async {
-    try {
-      final count = await widget.serviceManager.messageService
-          .unreadMessages(widget.user.email);
-      return count;
-    } catch (e) {
-      debugPrint('Dashboard: Error getting unread message count: $e');
-      return 0;
-    }
   }
 
   @override
@@ -285,13 +307,7 @@ class _DashboardPageState extends State<DashboardPage>
             ),
             SizedBox(width: 12),
             Expanded(
-              child: _buildStatCard(
-                'New Messages',
-                _unreadMessageCount.toString(),
-                Icons.mark_email_unread,
-                Colors.green,
-                isFullWidth: true,
-              ),
+              child: _buildUnreadMessagesCard(),
             ),
           ],
         ),
@@ -299,8 +315,52 @@ class _DashboardPageState extends State<DashboardPage>
     );
   }
 
+  Widget _buildUnreadMessagesCard() {
+    if (_unreadMessagesStream == null) {
+      debugPrint(
+          'Dashboard: Stream is null, using fallback count: $_unreadMessageCount');
+      return _buildStatCard(
+        'New Messages',
+        _unreadMessageCount.toString(),
+        Icons.mark_email_unread,
+        Colors.green,
+        isFullWidth: true,
+      );
+    }
+
+    return StreamBuilder<int>(
+      stream: _unreadMessagesStream,
+      builder: (context, snapshot) {
+        int unreadCount = 0;
+        bool isLoading = false;
+
+        if (snapshot.hasData) {
+          unreadCount = snapshot.data!;
+          debugPrint(
+              'Dashboard: Stream received data - unread count: $unreadCount');
+        } else if (snapshot.hasError) {
+          unreadCount = _unreadMessageCount; // Fallback to previous value
+          debugPrint(
+              'Dashboard: Stream error - using fallback count: $unreadCount');
+        } else {
+          isLoading = true;
+          debugPrint('Dashboard: Stream loading...');
+        }
+
+        return _buildStatCard(
+          'New Messages',
+          unreadCount.toString(),
+          Icons.mark_email_unread,
+          Colors.green,
+          isFullWidth: true,
+          isLoading: isLoading,
+        );
+      },
+    );
+  }
+
   Widget _buildStatCard(String title, String value, IconData icon, Color color,
-      {bool isFullWidth = false}) {
+      {bool isFullWidth = false, bool isLoading = false}) {
     return Container(
       width: isFullWidth ? double.infinity : null,
       padding: EdgeInsets.all(20),
@@ -330,7 +390,7 @@ class _DashboardPageState extends State<DashboardPage>
                 child: Icon(icon, color: color, size: 20),
               ),
               Spacer(),
-              if (_isLoadingStats)
+              if (_isLoadingStats || isLoading)
                 SizedBox(
                   width: 16,
                   height: 16,
