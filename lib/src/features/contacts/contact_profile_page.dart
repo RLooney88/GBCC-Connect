@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:gbcc_connect_app/src/core/utils/functions.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/models/contact.dart';
 import '../../core/models/user.dart';
@@ -487,7 +488,7 @@ class _ContactProfilePageState extends State<ContactProfilePage> {
                   context: context,
                   icon: Icons.calendar_today_outlined,
                   title: 'Added',
-                  subtitle: _formatDate(contact.createdAt),
+                  subtitle: formatDefaultDate(contact.createdAt),
                   onTap: null,
                 ),
                 const SizedBox(height: 12),
@@ -495,7 +496,7 @@ class _ContactProfilePageState extends State<ContactProfilePage> {
                   context: context,
                   icon: Icons.update_outlined,
                   title: 'Last Updated',
-                  subtitle: _formatDate(contact.updatedAt),
+                  subtitle: formatDefaultDate(contact.updatedAt),
                   onTap: null,
                 ),
               ],
@@ -552,10 +553,6 @@ class _ContactProfilePageState extends State<ContactProfilePage> {
         onTap: onTap,
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 
   Future<void> _launchUrl(String url) async {

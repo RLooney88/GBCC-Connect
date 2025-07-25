@@ -1,3 +1,5 @@
+import 'package:gbcc_connect_app/src/core/utils/functions.dart';
+
 class User {
   final String id;
   final String? name;
@@ -19,8 +21,8 @@ class User {
   final String? companyPhone;
   final String? companyEmail;
   final String status;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   User({
     required this.id,
@@ -43,8 +45,8 @@ class User {
     this.companyPhone,
     this.companyEmail,
     this.status = 'active',
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -69,43 +71,9 @@ class User {
       companyPhone: json['companyPhone'],
       companyEmail: json['companyEmail'],
       status: json['status'] ?? 'active',
-      createdAt: _parseDateTime(json['createdAt']),
-      updatedAt: _parseDateTime(json['updatedAt']),
+      createdAt: parseDateTime(json['createdAt']),
+      updatedAt: parseDateTime(json['updatedAt']),
     );
-  }
-
-  // Helper method to parse DateTime safely
-  static DateTime _parseDateTime(dynamic dateTimeValue) {
-    if (dateTimeValue == null) {
-      return DateTime.now();
-    }
-
-    if (dateTimeValue is DateTime) {
-      return dateTimeValue;
-    }
-
-    if (dateTimeValue is String) {
-      try {
-        return DateTime.parse(dateTimeValue);
-      } catch (e) {
-        return DateTime.now();
-      }
-    }
-
-    // Handle Firestore Timestamp objects
-    if (dateTimeValue.toString().contains('Timestamp')) {
-      try {
-        // This is a Firestore Timestamp, convert to DateTime
-        final timestamp = dateTimeValue as dynamic;
-        if (timestamp.toDate != null) {
-          return timestamp.toDate();
-        }
-      } catch (e) {
-        return DateTime.now();
-      }
-    }
-
-    return DateTime.now();
   }
 
   Map<String, dynamic> toJson() {
@@ -130,8 +98,8 @@ class User {
       'companyPhone': companyPhone,
       'companyEmail': companyEmail,
       'status': status,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 

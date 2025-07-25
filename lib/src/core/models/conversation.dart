@@ -1,4 +1,5 @@
 import 'package:gbcc_connect_app/src/core/constants/constants.dart';
+import 'package:gbcc_connect_app/src/core/utils/functions.dart';
 
 import 'user.dart';
 import 'message.dart';
@@ -10,8 +11,8 @@ class Conversation {
   final User? owner; // Owner user object
   final User? participant; // Participant user object
   final Message? lastMessage;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
   final bool isActive; // Whether the conversation is active/archived
   final int unreadCount; // Number of unread messages
 
@@ -22,8 +23,8 @@ class Conversation {
     this.owner,
     this.participant,
     this.lastMessage,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
     this.isActive = true,
     this.unreadCount = 0,
   });
@@ -71,53 +72,19 @@ class Conversation {
       owner: owner,
       participant: participant,
       lastMessage: lastMessage,
-      createdAt: _parseDateTime(json['createdAt']),
-      updatedAt: _parseDateTime(json['updatedAt']),
+      createdAt: parseDateTime(json['createdAt']),
+      updatedAt: parseDateTime(json['updatedAt']),
       isActive: json['isActive'] ?? true,
       unreadCount: json['unreadCount'] ?? 0,
     );
-  }
-
-  // Helper method to parse DateTime safely
-  static DateTime _parseDateTime(dynamic dateTimeValue) {
-    if (dateTimeValue == null) {
-      return DateTime.now();
-    }
-
-    if (dateTimeValue is DateTime) {
-      return dateTimeValue;
-    }
-
-    if (dateTimeValue is String) {
-      try {
-        return DateTime.parse(dateTimeValue);
-      } catch (e) {
-        return DateTime.now();
-      }
-    }
-
-    // Handle Firestore Timestamp objects
-    if (dateTimeValue.toString().contains('Timestamp')) {
-      try {
-        // This is a Firestore Timestamp, convert to DateTime
-        final timestamp = dateTimeValue as dynamic;
-        if (timestamp.toDate != null) {
-          return timestamp.toDate();
-        }
-      } catch (e) {
-        return DateTime.now();
-      }
-    }
-
-    return DateTime.now();
   }
 
   Map<String, dynamic> toJson() {
     final json = {
       'ownerId': ownerId,
       'participantId': participantId,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
       'isActive': isActive,
       'unreadCount': unreadCount,
     };

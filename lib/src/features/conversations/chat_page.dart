@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gbcc_connect_app/src/core/utils/functions.dart';
 import '../../core/models/user.dart';
 import '../../core/services/service_manager.dart';
 import '../../core/models/message.dart';
@@ -469,7 +470,7 @@ class _ChatPageState extends State<ChatPage> {
             ),
             const SizedBox(height: 4),
             Text(
-              _formatTime(message.timestamp),
+              formatRelativeTime(message.createdAt),
               style: TextStyle(
                 fontSize: 12,
                 color: isMe ? Colors.white70 : Colors.grey[600],
@@ -479,19 +480,6 @@ class _ChatPageState extends State<ChatPage> {
         ),
       ),
     );
-  }
-
-  String _formatTime(DateTime timestamp) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final messageDate =
-        DateTime(timestamp.year, timestamp.month, timestamp.day);
-
-    if (messageDate == today) {
-      return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
-    } else {
-      return '${timestamp.day}/${timestamp.month} ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
-    }
   }
 
   Widget _buildMessageInput(BuildContext context) {

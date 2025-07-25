@@ -105,8 +105,39 @@ class FirebaseProvider extends ChangeNotifier {
 
   // ========== FIRESTORE CRUD OPERATIONS ==========
 
-  /// Create document in collection
+  /// Create document in collection with automatic server timestamps
   Future<DocumentReference> createDocument(
+      String collection, Map<String, dynamic> data) async {
+    try {
+      // Add server timestamps (will overwrite if already present)
+      final documentData = Map<String, dynamic>.from(data);
+      documentData.addAll(getCreatedUpdatedTimestampMap());
+
+      return await _firestore.collection(collection).add(documentData);
+    } catch (e) {
+      _setError('Failed to create document: $e');
+      rethrow;
+    }
+  }
+
+  /// Create document in collection with specific document ID and automatic server timestamps
+  Future<DocumentReference> createDocumentWithId(
+      String collection, String documentId, Map<String, dynamic> data) async {
+    try {
+      // Add server timestamps (will overwrite if already present)
+      final documentData = Map<String, dynamic>.from(data);
+      documentData.addAll(getCreatedUpdatedTimestampMap());
+
+      await _firestore.collection(collection).doc(documentId).set(documentData);
+      return _firestore.collection(collection).doc(documentId);
+    } catch (e) {
+      _setError('Failed to create document with ID: $e');
+      rethrow;
+    }
+  }
+
+  /// Create document without automatic timestamps (for explicit control)
+  Future<DocumentReference> createDocumentRaw(
       String collection, Map<String, dynamic> data) async {
     try {
       return await _firestore.collection(collection).add(data);
@@ -116,8 +147,8 @@ class FirebaseProvider extends ChangeNotifier {
     }
   }
 
-  /// Create document in collection with specific document ID
-  Future<DocumentReference> createDocumentWithId(
+  /// Create document with specific ID without automatic timestamps (for explicit control)
+  Future<DocumentReference> createDocumentWithIdRaw(
       String collection, String documentId, Map<String, dynamic> data) async {
     try {
       await _firestore.collection(collection).doc(documentId).set(data);
@@ -140,8 +171,26 @@ class FirebaseProvider extends ChangeNotifier {
     }
   }
 
-  /// Update document
+  /// Update document with automatic updatedAt server timestamp
   Future<void> updateDocument(
+      String collection, String documentId, Map<String, dynamic> data) async {
+    try {
+      // Add updatedAt server timestamp (will overwrite if already present)
+      final updateData = Map<String, dynamic>.from(data);
+      updateData.addAll(getUpdatedTimestampMap());
+
+      await _firestore
+          .collection(collection)
+          .doc(documentId)
+          .update(updateData);
+    } catch (e) {
+      _setError('Failed to update document: $e');
+      rethrow;
+    }
+  }
+
+  /// Update document without automatic timestamps (for explicit control)
+  Future<void> updateDocumentRaw(
       String collection, String documentId, Map<String, dynamic> data) async {
     try {
       await _firestore.collection(collection).doc(documentId).update(data);
@@ -255,6 +304,73 @@ class FirebaseProvider extends ChangeNotifier {
       _setError('Failed to delete file: $e');
       rethrow;
     }
+  }
+
+  // ========== SERVER TIME OPERATIONS ==========
+
+  /// Get Firebase server timestamp for use in documents
+  /// This is the recommended way to get server time for document fields
+  FieldValue get serverTimestamp => FieldValue.serverTimestamp();
+
+  /// Get actual Firebase server time as DateTime
+  /// This makes a network call to get the current server time
+  Future<DateTime> getServerTime() async {
+    try {
+      // Create a temporary document to get server timestamp
+      final docRef = _firestore.collection('_serverTime').doc('current');
+
+      // Write a document with server timestamp
+      await docRef.set({
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      // Read it back to get the actual timestamp
+      final doc = await docRef.get();
+      final timestamp = doc.data()?['timestamp'] as Timestamp?;
+
+      // Clean up the temporary document
+      await docRef.delete();
+
+      if (timestamp != null) {
+        return timestamp.toDate();
+      } else {
+        throw Exception('Failed to get server timestamp');
+      }
+    } catch (e) {
+      _setError('Failed to get server time: $e');
+      rethrow;
+    }
+  }
+
+  /// Get server timestamp as ISO string
+  Future<String> getServerTimeAsIsoString() async {
+    final serverTime = await getServerTime();
+    return serverTime.toIso8601String();
+  }
+
+  /// Create a map with server timestamp for document creation/updates
+  /// Usage: {'field': 'value', ...getServerTimestampMap()}
+  Map<String, dynamic> getServerTimestampMap() {
+    return {
+      'timestamp': FieldValue.serverTimestamp(),
+    };
+  }
+
+  /// Create a map with createdAt and updatedAt server timestamps
+  /// Usage: {'field': 'value', ...getCreatedUpdatedTimestampMap()}
+  Map<String, dynamic> getCreatedUpdatedTimestampMap() {
+    return {
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+  }
+
+  /// Create a map with only updatedAt server timestamp
+  /// Usage: {'field': 'value', ...getUpdatedTimestampMap()}
+  Map<String, dynamic> getUpdatedTimestampMap() {
+    return {
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
   }
 
   // ========== UTILITY METHODS ==========

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart'; // Added for debugPrint
 import '../models/message.dart';
 import '../models/user.dart';
@@ -55,7 +56,6 @@ class MessageService {
         from: fromEmail,
         to: toEmail,
         content: content,
-        timestamp: DateTime.now(),
         status: MessageStatus.sent,
         attachmentUrl: attachmentUrl,
         messageType: messageType,
@@ -67,8 +67,12 @@ class MessageService {
         message.toJson(),
       );
 
-      // Update message with generated ID
-      final messageWithId = message.copyWith(id: messageRef.id);
+      // Update message with generated ID and server-generated fields
+      final messageWithId = message.copyWith(
+        id: messageRef.id,
+        createdAt: Timestamp.now().toDate(),
+        updatedAt: Timestamp.now().toDate(),
+      );
 
       // Update conversation with last message using ConversationService
       await _conversationService!.updateConversationWithMessage(
@@ -131,7 +135,7 @@ class MessageService {
       final querySnapshot = await _firebaseProvider!.getDocuments(
         _collection,
         filters: filters,
-        orderBy: 'timestamp',
+        orderBy: 'createdAt',
         descending: true,
         limit: 50, // Limit to last 50 messages
       );
@@ -179,7 +183,7 @@ class MessageService {
           .listenToCollection(
         _collection,
         filters: filters,
-        orderBy: 'timestamp',
+        orderBy: 'createdAt',
         descending: true,
       )
           .map((snapshot) {
@@ -509,7 +513,7 @@ class MessageService {
           .listenToCollection(
         _collection,
         filters: filters,
-        orderBy: 'timestamp',
+        orderBy: 'createdAt',
         descending: true,
       )
           .map((snapshot) {

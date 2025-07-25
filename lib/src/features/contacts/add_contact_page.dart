@@ -604,8 +604,6 @@ class _AddContactPageState extends State<AddContactPage> {
         isFavorite: false,
         isBlocked: false,
         chamberMember: false,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
       );
 
       // Save the contact using ServiceManager

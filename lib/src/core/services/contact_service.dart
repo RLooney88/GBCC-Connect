@@ -176,7 +176,6 @@ class ContactService {
         contactId,
         {
           'isFavorite': isFavorite,
-          'updatedAt': DateTime.now().toIso8601String()
         },
       );
     } catch (e) {
@@ -338,8 +337,6 @@ class ContactService {
       isFavorite: false,
       isBlocked: false,
       chamberMember: user.chamberMember,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
     );
   }
 
@@ -408,8 +405,6 @@ class ContactService {
             isFavorite: false,
             isBlocked: fields[13].toLowerCase() == 'yes',
             chamberMember: fields[12].toLowerCase() == 'yes',
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
           );
           contacts.add(contact);
         }

@@ -137,8 +137,6 @@ class AuthProvider extends ChangeNotifier {
         name: displayName ?? _firebaseUser!.displayName ?? 'No Name',
         email: _firebaseUser!.email ?? '',
         phone: _firebaseUser!.phoneNumber,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
       );
 
       await _firestore
@@ -162,7 +160,6 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(true);
 
       final userData = updatedUser.toJson();
-      userData['updatedAt'] = DateTime.now().toIso8601String();
 
       await _firestore
           .collection('users')
@@ -170,7 +167,7 @@ class AuthProvider extends ChangeNotifier {
           .update(userData);
 
       _currentUser = updatedUser.copyWith(
-        updatedAt: DateTime.now(),
+        updatedAt: Timestamp.now().toDate(),
       );
 
       notifyListeners();

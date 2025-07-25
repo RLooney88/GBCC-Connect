@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gbcc_connect_app/src/core/utils/functions.dart';
 import '../../core/models/user.dart';
 import '../../core/services/service_manager.dart';
 import '../../core/models/conversation.dart';
@@ -197,9 +198,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   /// Delete conversation with confirmation
   Future<void> _deleteConversation(Conversation conversation) async {
-    final confirmed = await _showDeleteConfirmationDialog(conversation);
-    if (!confirmed) return;
-
     setState(() {
       _deletingConversations.add(conversation.id);
     });
@@ -638,7 +636,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
     final avatar = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
     final lastMessage = conversation.lastMessage?.content ?? 'No messages yet';
-    final time = _formatTime(conversation.updatedAt);
+    final time = formatRelativeTime(conversation.lastMessage?.createdAt);
     final unreadCount =
         conversation.unreadCount; // Use the unread count from conversation
     final isDeleting = _deletingConversations.contains(conversation.id);
@@ -819,18 +817,5 @@ class _ConversationsPageState extends State<ConversationsPage> {
     }
 
     return tileContent;
-  }
-
-  String _formatTime(DateTime timestamp) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final messageDate =
-        DateTime(timestamp.year, timestamp.month, timestamp.day);
-
-    if (messageDate == today) {
-      return '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
-    } else {
-      return '${timestamp.day}/${timestamp.month} ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
-    }
   }
 }

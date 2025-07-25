@@ -57,24 +57,23 @@ class ServiceManager {
       // Use the provided FirebaseProvider instance
       _firebaseProvider = firebaseProvider;
 
-      // Initialize services in dependency order
-      // 1. UserService (no dependencies)
+      // 2. UserService (no dependencies)
       _userService = UserService.instance;
       await _userService.initialize(_firebaseProvider!);
 
-      // 2. ContactService (no dependencies)
+      // 3. ContactService (no dependencies)
       _contactService = ContactService.instance;
       await _contactService.initialize(_firebaseProvider!);
 
-      // 3. ConversationService (no dependencies)
+      // 4. ConversationService (no dependencies)
       _conversationService = ConversationService.instance;
       await _conversationService.initialize(_firebaseProvider!);
 
-      // 4. MessageService (depends on ConversationService)
+      // 5. MessageService (depends on ConversationService)
       _messageService = MessageService.instance;
       await _messageService.initialize(_firebaseProvider!);
 
-      // 5. EmailService (no dependencies)
+      // 6. EmailService (no dependencies)
       _emailService = EmailService.instance;
 
       _isInitialized = true;

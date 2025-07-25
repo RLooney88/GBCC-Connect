@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gbcc_connect_app/src/core/constants/constants.dart';
+import 'package:gbcc_connect_app/src/core/utils/functions.dart';
 
 import 'user.dart';
 
@@ -22,8 +24,8 @@ class Contact {
   final bool isFavorite;
   final bool isBlocked;
   final bool chamberMember;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   Contact({
     required this.id,
@@ -45,8 +47,8 @@ class Contact {
     this.isFavorite = false,
     this.isBlocked = false,
     this.chamberMember = false,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory Contact.fromJson(Map<String, dynamic> json) {
@@ -61,8 +63,8 @@ class Contact {
           id: json['ownerId'] ?? '',
           name: AppConstants.defaultDisplayName,
           email: '',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+          createdAt: Timestamp.now().toDate(),
+          updatedAt: Timestamp.now().toDate(),
         );
       }
     } catch (e) {
@@ -71,8 +73,8 @@ class Contact {
         id: json['ownerId'] ?? '',
         name: AppConstants.defaultDisplayName,
         email: '',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        createdAt: Timestamp.now().toDate(),
+        updatedAt: Timestamp.now().toDate(),
       );
     }
 
@@ -96,43 +98,9 @@ class Contact {
       isFavorite: json['isFavorite'] ?? false,
       isBlocked: json['isBlocked'] ?? false,
       chamberMember: json['chamberMember'] ?? false,
-      createdAt: _parseDateTime(json['createdAt']),
-      updatedAt: _parseDateTime(json['updatedAt']),
+      createdAt: parseDateTime(json['createdAt']),
+      updatedAt: parseDateTime(json['updatedAt']),
     );
-  }
-
-  // Helper method to parse DateTime safely
-  static DateTime _parseDateTime(dynamic dateTimeValue) {
-    if (dateTimeValue == null) {
-      return DateTime.now();
-    }
-
-    if (dateTimeValue is DateTime) {
-      return dateTimeValue;
-    }
-
-    if (dateTimeValue is String) {
-      try {
-        return DateTime.parse(dateTimeValue);
-      } catch (e) {
-        return DateTime.now();
-      }
-    }
-
-    // Handle Firestore Timestamp objects
-    if (dateTimeValue.toString().contains('Timestamp')) {
-      try {
-        // This is a Firestore Timestamp, convert to DateTime
-        final timestamp = dateTimeValue as dynamic;
-        if (timestamp.toDate != null) {
-          return timestamp.toDate();
-        }
-      } catch (e) {
-        return DateTime.now();
-      }
-    }
-
-    return DateTime.now();
   }
 
   Map<String, dynamic> toJson() {
@@ -155,8 +123,8 @@ class Contact {
       'isFavorite': isFavorite,
       'isBlocked': isBlocked,
       'chamberMember': chamberMember,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
 
     // Only include ID if it's not empty

@@ -71,8 +71,6 @@ class ConversationService {
         owner: ownerUser,
         participant: participantUser,
         lastMessage: null,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
         isActive: true,
       );
 
@@ -248,7 +246,6 @@ class ConversationService {
         conversationId,
         {
           'lastMessage': message.toJson(),
-          'updatedAt': message.timestamp.toIso8601String(),
         },
       );
     } catch (e) {
@@ -267,7 +264,6 @@ class ConversationService {
         conversationId,
         {
           'unreadCount': unreadCount,
-          'updatedAt': DateTime.now().toIso8601String(),
         },
       );
     } catch (e) {
@@ -286,7 +282,6 @@ class ConversationService {
         conversationId,
         {
           'unreadCount': 0,
-          'updatedAt': DateTime.now().toIso8601String(),
         },
       );
 
@@ -309,7 +304,6 @@ class ConversationService {
         conversationId,
         {
           'isActive': isActive,
-          'updatedAt': DateTime.now().toIso8601String(),
         },
       );
     } catch (e) {
@@ -431,7 +425,6 @@ class ConversationService {
       }
 
       if (updates.isNotEmpty) {
-        updates['updatedAt'] = DateTime.now().toIso8601String();
         await _firebaseProvider!.updateDocument(
           _collection,
           conversationId,

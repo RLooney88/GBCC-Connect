@@ -145,7 +145,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ? null
             : _pinterestController.text.trim(),
         chamberMember: _isChamberMember,
-        updatedAt: DateTime.now(),
       );
 
       // Update user using ServiceManager

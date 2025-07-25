@@ -236,7 +236,6 @@ class UserService {
         userId,
         {
           'status': status,
-          'updatedAt': DateTime.now().toIso8601String(),
         },
       );
     } catch (e) {
@@ -253,7 +252,6 @@ class UserService {
         userId,
         {
           ...profileData,
-          'updatedAt': DateTime.now().toIso8601String(),
         },
       );
     } catch (e) {

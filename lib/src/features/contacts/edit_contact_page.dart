@@ -646,7 +646,6 @@ class _EditContactPageState extends State<EditContactPage> {
             : _pinterestController.text.trim(),
         chamberMember: _isChamberMember,
         isFavorite: _isFavorite,
-        updatedAt: DateTime.now(),
       );
 
       // Update the contact using ServiceManager
