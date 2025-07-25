@@ -460,7 +460,8 @@ class _ChatPageState extends State<ChatPage> {
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Text(
               message.content,
@@ -475,6 +476,7 @@ class _ChatPageState extends State<ChatPage> {
                 fontSize: 12,
                 color: isMe ? Colors.white70 : Colors.grey[600],
               ),
+              textAlign: isMe ? TextAlign.right : TextAlign.left,
             ),
           ],
         ),
