@@ -20,6 +20,10 @@ class Message {
   final String messageType; // 'text', 'image', 'file'
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final bool
+      removedOwner; // Whether the conversation owner has removed this message
+  final bool
+      removedParticipant; // Whether the conversation participant has removed this message
 
   Message({
     required this.id,
@@ -32,6 +36,8 @@ class Message {
     this.messageType = 'text',
     this.createdAt,
     this.updatedAt,
+    this.removedOwner = false,
+    this.removedParticipant = false,
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -46,6 +52,8 @@ class Message {
       messageType: json['messageType'] ?? 'text',
       createdAt: parseDateTime(json['createdAt']),
       updatedAt: parseDateTime(json['updatedAt']),
+      removedOwner: json['removedOwner'] ?? false,
+      removedParticipant: json['removedParticipant'] ?? false,
     );
   }
 
@@ -76,6 +84,8 @@ class Message {
       'messageType': messageType,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'removedOwner': removedOwner,
+      'removedParticipant': removedParticipant,
     };
   }
 
@@ -91,6 +101,8 @@ class Message {
     String? messageType,
     DateTime? createdAt,
     DateTime? updatedAt,
+    bool? removedOwner,
+    bool? removedParticipant,
   }) {
     return Message(
       id: id ?? this.id,
@@ -103,6 +115,26 @@ class Message {
       messageType: messageType ?? this.messageType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      removedOwner: removedOwner ?? this.removedOwner,
+      removedParticipant: removedParticipant ?? this.removedParticipant,
     );
+  }
+
+  /// Check if this message should be displayed for a given user
+  /// Returns true if the message should be shown, false if it should be hidden
+  bool shouldDisplayForUser(
+      String userEmail, String ownerEmail, String participantEmail) {
+    if (userEmail == ownerEmail) {
+      return !removedOwner;
+    } else if (userEmail == participantEmail) {
+      return !removedParticipant;
+    }
+    return true; // Default to showing if user is neither owner nor participant
+  }
+
+  /// Check if this message should be permanently deleted
+  /// Returns true if both owner and participant have removed it
+  bool shouldBePermanentlyDeleted() {
+    return removedOwner && removedParticipant;
   }
 }

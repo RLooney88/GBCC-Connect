@@ -314,6 +314,8 @@ class ConversationService {
   /// Delete conversation
   Future<void> deleteConversation(String conversationId) async {
     try {
+      // Delete the conversation document
+      // Note: Messages are now handled by the calling code using softDeleteMessagesForUser
       await _firebaseProvider!.deleteDocument(_collection, conversationId);
     } catch (e) {
       throw Exception('Failed to delete conversation: $e');
@@ -324,10 +326,91 @@ class ConversationService {
   Future<void> deleteMultipleConversations(List<String> conversationIds) async {
     try {
       for (final id in conversationIds) {
+        // Delete the conversation document
+        // Note: Messages are now handled by the calling code using softDeleteMessagesForUser
         await _firebaseProvider!.deleteDocument(_collection, id);
       }
     } catch (e) {
       throw Exception('Failed to delete conversations: $e');
+    }
+  }
+
+  /// Soft delete messages in a conversation for a specific user
+  /// This is the proper method to use when a specific user deletes a conversation
+  Future<void> softDeleteMessagesForUser(
+    String conversationId,
+    String userEmail,
+  ) async {
+    try {
+      // Get the conversation to determine owner and participant
+      final conversationDoc = await _firebaseProvider!.getDocument(
+        _collection,
+        conversationId,
+      );
+
+      if (conversationDoc == null || !conversationDoc.exists) {
+        return; // Conversation doesn't exist, nothing to delete
+      }
+
+      final conversationData = conversationDoc.data() as Map<String, dynamic>;
+      final ownerEmail = conversationData['ownerId'] as String?;
+      final participantEmail = conversationData['participantId'] as String?;
+
+      if (ownerEmail == null || participantEmail == null) {
+        return; // Invalid conversation data
+      }
+
+      // Determine which removal field to update
+      final isOwner = userEmail == ownerEmail;
+      final removalField = isOwner ? 'removedOwner' : 'removedParticipant';
+
+      // Get all messages in the conversation
+      final filters = [MapEntry('conversationId', conversationId)];
+      final messagesQuery = await _firebaseProvider!.getDocuments(
+        'messages',
+        filters: filters,
+      );
+
+      // Use a Firestore transaction to ensure atomicity
+      await _firebaseProvider!.runTransaction((transaction) async {
+        // Process each message within the transaction
+        for (final doc in messagesQuery.docs) {
+          final messageData = doc.data() as Map<String, dynamic>;
+          final currentRemovedOwner = messageData['removedOwner'] ?? false;
+          final currentRemovedParticipant =
+              messageData['removedParticipant'] ?? false;
+
+          // Update the appropriate removal field
+          final updates = <String, dynamic>{};
+          updates[removalField] = true;
+
+          // Check if both users have now removed the message
+          final willBeRemovedByOwner =
+              removalField == 'removedOwner' ? true : currentRemovedOwner;
+          final willBeRemovedByParticipant =
+              removalField == 'removedParticipant'
+                  ? true
+                  : currentRemovedParticipant;
+
+          if (willBeRemovedByOwner && willBeRemovedByParticipant) {
+            // Both users have removed it, delete permanently
+            transaction.delete(doc.reference);
+          } else {
+            // Only one user has removed it, just update the field
+            transaction.update(doc.reference, updates);
+          }
+        }
+
+        // Only delete the conversation document after all messages are processed
+        transaction.delete(conversationDoc.reference);
+      });
+
+      debugPrint(
+          'ConversationService: Successfully soft deleted messages for user: $userEmail');
+    } catch (e) {
+      debugPrint(
+          'ConversationService: Error soft deleting messages for user: $e');
+      throw Exception('Failed to soft delete messages: $e');
     }
   }
 

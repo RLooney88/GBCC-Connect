@@ -210,6 +210,22 @@ class FirebaseProvider extends ChangeNotifier {
     }
   }
 
+  /// Get document reference
+  DocumentReference getDocumentReference(String collection, String documentId) {
+    return _firestore.collection(collection).doc(documentId);
+  }
+
+  /// Run a Firestore transaction
+  Future<T> runTransaction<T>(
+      Future<T> Function(Transaction) updateFunction) async {
+    try {
+      return await _firestore.runTransaction(updateFunction);
+    } catch (e) {
+      _setError('Transaction failed: $e');
+      rethrow;
+    }
+  }
+
   /// Get documents with filters
   Future<QuerySnapshot> getDocuments(
     String collection, {

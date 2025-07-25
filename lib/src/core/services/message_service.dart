@@ -140,12 +140,23 @@ class MessageService {
         limit: 50, // Limit to last 50 messages
       );
 
-      return querySnapshot.docs.map((doc) {
+      // Filter out messages that should not be displayed for the current user
+      final messages = querySnapshot.docs.map((doc) {
         return Message.fromJson({
           'id': doc.id,
           ...(doc.data() as Map<String, dynamic>),
         });
+      }).where((message) {
+        // Get conversation details to determine owner and participant
+        final ownerEmail = conversation.ownerId;
+        final participantEmail = conversation.participantId;
+
+        // Only show messages that should be displayed for user1Email
+        return message.shouldDisplayForUser(
+            user1Email, ownerEmail, participantEmail);
       }).toList();
+
+      return messages;
     } catch (e) {
       throw Exception('Failed to get messages: $e');
     }
@@ -186,12 +197,27 @@ class MessageService {
         orderBy: 'createdAt',
         descending: true,
       )
-          .map((snapshot) {
+          .asyncMap((snapshot) async {
+        // Get conversation details to determine owner and participant
+        final conversation = await _conversationService!.getConversationByEmail(
+          user1Email,
+          user2Email,
+        );
+
+        if (conversation == null) return [];
+
+        final ownerEmail = conversation.ownerId;
+        final participantEmail = conversation.participantId;
+
         return snapshot.docs.map((doc) {
           return Message.fromJson({
             'id': doc.id,
             ...(doc.data() as Map<String, dynamic>),
           });
+        }).where((message) {
+          // Only show messages that should be displayed for user1Email
+          return message.shouldDisplayForUser(
+              user1Email, ownerEmail, participantEmail);
         }).toList();
       });
     } catch (e) {
@@ -315,6 +341,109 @@ class MessageService {
       }
     } catch (e) {
       throw Exception('Failed to delete messages in conversation: $e');
+    }
+  }
+
+  /// Soft delete messages in a conversation for a specific user
+  /// This marks messages as removed for the specified user
+  Future<void> softDeleteMessagesForUser(
+    String conversationId,
+    String userEmail,
+  ) async {
+    try {
+      // Get conversation details to determine owner and participant
+      final conversationDoc = await _firebaseProvider!.getDocument(
+        'conversations',
+        conversationId,
+      );
+
+      if (conversationDoc == null || !conversationDoc.exists) {
+        return; // Conversation doesn't exist
+      }
+
+      final conversationData = conversationDoc.data() as Map<String, dynamic>;
+      final ownerEmail = conversationData['ownerId'] as String?;
+      final participantEmail = conversationData['participantId'] as String?;
+
+      if (ownerEmail == null || participantEmail == null) {
+        return; // Invalid conversation data
+      }
+
+      // Determine which removal field to update
+      final isOwner = userEmail == ownerEmail;
+      final removalField = isOwner ? 'removedOwner' : 'removedParticipant';
+
+      // Get all messages in the conversation
+      final filters = [MapEntry('conversationId', conversationId)];
+      final messagesQuery = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: filters,
+      );
+
+      // Use a Firestore transaction to ensure atomicity
+      await _firebaseProvider!.runTransaction((transaction) async {
+        // Process each message within the transaction
+        for (final doc in messagesQuery.docs) {
+          final messageData = doc.data() as Map<String, dynamic>;
+          final currentRemovedOwner = messageData['removedOwner'] ?? false;
+          final currentRemovedParticipant =
+              messageData['removedParticipant'] ?? false;
+
+          // Update the appropriate removal field
+          final updates = <String, dynamic>{};
+          updates[removalField] = true;
+
+          // Check if both users have now removed the message
+          final willBeRemovedByOwner =
+              removalField == 'removedOwner' ? true : currentRemovedOwner;
+          final willBeRemovedByParticipant =
+              removalField == 'removedParticipant'
+                  ? true
+                  : currentRemovedParticipant;
+
+          if (willBeRemovedByOwner && willBeRemovedByParticipant) {
+            // Both users have removed it, delete permanently
+            transaction.delete(doc.reference);
+          } else {
+            // Only one user has removed it, just update the field
+            transaction.update(doc.reference, updates);
+          }
+        }
+      });
+
+      debugPrint(
+          'MessageService: Successfully soft deleted messages for user: $userEmail');
+    } catch (e) {
+      debugPrint('MessageService: Error soft deleting messages for user: $e');
+      throw Exception('Failed to soft delete messages: $e');
+    }
+  }
+
+  /// Clean up permanently deleted messages
+  /// This method can be called periodically to remove messages that both users have marked as removed
+  Future<void> cleanupPermanentlyDeletedMessages() async {
+    try {
+      // Get all messages where both removedOwner and removedParticipant are true
+      final filters = [
+        MapEntry('removedOwner', true),
+        MapEntry('removedParticipant', true),
+      ];
+
+      final messagesQuery = await _firebaseProvider!.getDocuments(
+        _collection,
+        filters: filters,
+      );
+
+      // Delete all messages that both users have removed
+      for (final doc in messagesQuery.docs) {
+        await _firebaseProvider!.deleteDocument(_collection, doc.id);
+      }
+
+      debugPrint(
+          'MessageService: Cleaned up ${messagesQuery.docs.length} permanently deleted messages');
+    } catch (e) {
+      debugPrint('MessageService: Error cleaning up deleted messages: $e');
+      throw Exception('Failed to cleanup deleted messages: $e');
     }
   }
 

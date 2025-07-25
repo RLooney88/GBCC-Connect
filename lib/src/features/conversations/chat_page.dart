@@ -99,8 +99,34 @@ class _ChatPageState extends State<ChatPage> {
               );
               return; // Exit the method as we're navigating away
             } else if (mounted) {
-              // User declined to add contact, go back
-              // Navigator.pop(context);
+              // User declined to add contact, but we can still chat since they are registered
+              // Set up chat functionality with participant's information
+              setState(() {
+                _ownerId = ownerUser.id;
+                _participantEmail = chatId; // chatId is the email
+                _contactName = displayName;
+                _contactAvatar =
+                    displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
+                _isParticipantRegistered = true;
+                _participantUser = participantUser;
+              });
+
+              // Set up real-time streaming using email-based approach
+              _messageStream =
+                  serviceManager.messageService.streamMessagesByEmail(
+                ownerUser.email,
+                chatId,
+              );
+
+              // Mark messages as read
+              await serviceManager.messageService.markMessagesAsRead(
+                ownerUser.email,
+                chatId,
+              );
+
+              setState(() {
+                _isLoading = false;
+              });
               return;
             }
           }
@@ -123,8 +149,35 @@ class _ChatPageState extends State<ChatPage> {
               );
               return; // Exit the method as we're navigating away
             } else if (mounted) {
-              // User declined to add contact, go back
-              // Navigator.pop(context);
+              // User declined to add contact, but we can still chat since they are registered
+              // Set up chat functionality with basic information
+              setState(() {
+                _ownerId = ownerUser.id;
+                _participantEmail = chatId; // chatId is the email
+                _contactName = chatId.split('@')[0]; // Use email prefix as name
+                _contactAvatar = _contactName!.isNotEmpty
+                    ? _contactName![0].toUpperCase()
+                    : 'U';
+                _isParticipantRegistered = true;
+                _participantUser = null; // We couldn't get user details
+              });
+
+              // Set up real-time streaming using email-based approach
+              _messageStream =
+                  serviceManager.messageService.streamMessagesByEmail(
+                ownerUser.email,
+                chatId,
+              );
+
+              // Mark messages as read
+              await serviceManager.messageService.markMessagesAsRead(
+                ownerUser.email,
+                chatId,
+              );
+
+              setState(() {
+                _isLoading = false;
+              });
               return;
             }
           }

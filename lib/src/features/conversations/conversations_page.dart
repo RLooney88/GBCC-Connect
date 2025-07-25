@@ -130,10 +130,15 @@ class _ConversationsPageState extends State<ConversationsPage> {
     });
 
     try {
-      await widget.serviceManager.conversationService
-          .deleteMultipleConversations(
-        _selectedConversations.toList(),
-      );
+      // Use the new soft deletion method that properly handles messages and conversation
+      for (final conversationId in _selectedConversations) {
+        // This method now handles both message soft deletion and conversation deletion atomically
+        await widget.serviceManager.conversationService
+            .softDeleteMessagesForUser(
+          conversationId,
+          widget.user.email,
+        );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -203,8 +208,11 @@ class _ConversationsPageState extends State<ConversationsPage> {
     });
 
     try {
-      await widget.serviceManager.conversationService
-          .deleteConversation(conversation.id);
+      // This method now handles both message soft deletion and conversation deletion atomically
+      await widget.serviceManager.conversationService.softDeleteMessagesForUser(
+        conversation.id,
+        widget.user.email,
+      );
 
       // Show success message
       if (mounted) {
