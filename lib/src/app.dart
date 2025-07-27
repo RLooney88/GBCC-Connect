@@ -242,10 +242,10 @@ class MyApp extends StatelessWidget {
               ),
               materialTapTargetSize: MaterialTapTargetSize.padded,
             ),
-            indicatorColor: primaryColor,
             progressIndicatorTheme: const ProgressIndicatorThemeData(
               color: primaryColor,
             ),
+            tabBarTheme: TabBarThemeData(indicatorColor: primaryColor),
           ),
           themeMode: settingsController.themeMode,
 
