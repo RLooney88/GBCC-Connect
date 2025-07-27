@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gbcc_connect_app/src/core/models/conversation.dart';
 import 'package:gbcc_connect_app/src/core/utils/functions.dart';
 
