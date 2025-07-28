@@ -7,6 +7,7 @@ import '../../core/services/service_manager.dart';
 import '../../core/services/ocr_service.dart';
 import '../../core/routes/app_routes.dart';
 import 'business_card_scanner_page.dart';
+import '../qr_code/qr_code_scanner_page.dart';
 import '../../app.dart';
 
 class AddContactPage extends StatefulWidget {
@@ -222,6 +223,25 @@ class _AddContactPageState extends State<AddContactPage> {
                   backgroundColor: MyApp.accentColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Scan QR Code Button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _scanQRCode,
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Scan QR Code'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: MyApp.primaryColor,
+                  side: BorderSide(color: MyApp.primaryColor),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
@@ -496,6 +516,30 @@ class _AddContactPageState extends State<AddContactPage> {
     }
   }
 
+  /// Scan QR code and extract contact information
+  Future<void> _scanQRCode() async {
+    try {
+      final result = await Navigator.push<Map<String, dynamic>>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => QRCodeScannerPage(
+            user: widget.user,
+            serviceManager: widget.serviceManager,
+            onDataExtracted: _populateFormWithQRData,
+          ),
+        ),
+      );
+
+      if (result != null) {
+        _populateFormWithQRData(result);
+      }
+    } catch (e) {
+      if (mounted) {
+        context.showErrorSnackBar('Failed to scan QR code: $e');
+      }
+    }
+  }
+
   /// Populate form fields with scanned business card data
   void _populateFormWithScannedData(BusinessCardData data) {
     setState(() {
@@ -532,6 +576,57 @@ class _AddContactPageState extends State<AddContactPage> {
     if (mounted) {
       context
           .showSuccessSnackBar('Contact information extracted successfully!');
+    }
+  }
+
+  /// Populate form fields with scanned QR code data
+  void _populateFormWithQRData(Map<String, dynamic> data) {
+    setState(() {
+      if (data['displayName'] != null && data['displayName']!.isNotEmpty) {
+        _nameController.text = data['displayName']!;
+      } else if (data['name'] != null && data['name']!.isNotEmpty) {
+        _nameController.text = data['name']!;
+      }
+      if (data['email'] != null && data['email']!.isNotEmpty) {
+        _emailController.text = data['email']!;
+      }
+      if (data['phone'] != null && data['phone']!.isNotEmpty) {
+        _phoneController.text = data['phone']!;
+      }
+      if (data['company'] != null && data['company']!.isNotEmpty) {
+        _companyController.text = data['company']!;
+      }
+      if (data['title'] != null && data['title']!.isNotEmpty) {
+        _positionController.text = data['title']!;
+      }
+      if (data['website'] != null && data['website']!.isNotEmpty) {
+        _websiteController.text = data['website']!;
+      }
+
+      // Populate social media fields from social object
+      final social = data['social'] as Map<String, dynamic>?;
+      if (social != null) {
+        if (social['linkedin'] != null && social['linkedin']!.isNotEmpty) {
+          _linkedinController.text = social['linkedin']!;
+        }
+        if (social['facebook'] != null && social['facebook']!.isNotEmpty) {
+          _facebookController.text = social['facebook']!;
+        }
+        if (social['instagram'] != null && social['instagram']!.isNotEmpty) {
+          _instagramController.text = social['instagram']!;
+        }
+        if (social['youtube'] != null && social['youtube']!.isNotEmpty) {
+          _youtubeController.text = social['youtube']!;
+        }
+        if (social['pinterest'] != null && social['pinterest']!.isNotEmpty) {
+          _pinterestController.text = social['pinterest']!;
+        }
+      }
+    });
+
+    if (mounted) {
+      context
+          .showSuccessSnackBar('Contact information extracted from QR code!');
     }
   }
 

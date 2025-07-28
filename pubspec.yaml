@@ -37,6 +37,10 @@ dependencies:
   # # Image Processing for OCR
   image: ^4.5.4
 
+  # # QR Code Generation and Scanning
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^3.5.6
+
   # # Path utilities
   path_provider: ^2.1.5
   path: ^1.9.0
@@ -56,6 +60,8 @@ dependencies:
   device_info_plus: ^10.1.2
   # # URL Launcher
   url_launcher: ^6.3.1
+  # # Sharing functionality
+  share_plus: ^7.2.1
   # # Icons
   font_awesome_flutter: ^10.8.0
   # # Firebase

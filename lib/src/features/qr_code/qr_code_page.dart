@@ -23,6 +23,9 @@ class QRCodePage extends StatefulWidget {
 }
 
 class _QRCodePageState extends State<QRCodePage> {
+  final bool _isGeneratingQR = false;
+  bool _isSharing = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,46 +46,33 @@ class _QRCodePageState extends State<QRCodePage> {
   Widget _buildQRCodeContent(BuildContext context, dynamic user) {
     final displayName =
         user.displayName ?? user.name ?? AppConstants.defaultDisplayName;
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(height: 32),
-
           // User Info Card
           Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
                 CircleAvatar(
-                  radius: 40,
-                  backgroundColor: MyApp.primaryColor.withOpacity(0.3),
+                  radius: 35,
+                  backgroundColor: MyApp.primaryColor,
                   child: Text(
                     displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: MyApp.primaryColor,
+                      color: Colors.white,
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Text(
                   displayName,
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -100,81 +90,75 @@ class _QRCodePageState extends State<QRCodePage> {
             ),
           ),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 20),
 
           // QR Code Placeholder
           Container(
-            width: 200,
-            height: 200,
+            width: 220,
+            height: 220,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.qr_code,
-                  size: 80,
-                  color: MyApp.primaryColor,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'QR Code',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
+            child: _isGeneratingQR
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Generating QR Code...'),
+                      ],
+                    ),
+                  )
+                : widget.serviceManager.qrCodeService
+                    .generateStyledQRCodeWidget(
+                    user,
+                    size: 220,
+                    foregroundColor: Colors.black,
+                    backgroundColor: Colors.white,
+                    showUserInfo: false,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Coming Soon',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
           ),
 
           const SizedBox(height: 32),
 
-          // Share Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                // TODO: Implement QR code sharing functionality
-                context.showWarningSnackBar(
-                    'QR code sharing feature coming soon!');
-              },
-              icon: const Icon(Icons.share),
-              label: const Text('Share QR Code'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: MyApp.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          // Share Buttons
+          Column(
+            children: [
+              // Primary Share Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isSharing ? null : _shareQRCode,
+                  icon: _isSharing
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.share),
+                  label: Text(_isSharing ? 'Sharing...' : 'Share QR Code'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: MyApp.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
               ),
-            ),
+
+              const SizedBox(height: 10),
+            ],
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Instructions
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: MyApp.primaryColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
@@ -186,33 +170,120 @@ class _QRCodePageState extends State<QRCodePage> {
                 Row(
                   children: [
                     Icon(Icons.info_outline,
-                        color: MyApp.primaryColor, size: 20),
+                        color: MyApp.primaryColor, size: 18),
                     const SizedBox(width: 8),
                     Text(
                       'How to use:',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: MyApp.primaryColor,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
-                  '• Share your QR code with others to connect\n'
-                  '• Others can scan your QR code to add you as a contact\n'
-                  '• Your QR code contains your contact information',
+                  '• Share your QR code via mobile sharing apps\n'
+                  '• Recipients can scan the QR code to add you to their contacts\n'
+                  '• The QR code contains all your contact information\n'
+                  '• Works with any QR code scanner app',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     color: MyApp.primaryColor,
                   ),
                 ),
               ],
             ),
           ),
+
+          const SizedBox(height: 16),
         ],
       ),
     );
+  }
+
+  Future<void> _shareQRCode() async {
+    setState(() {
+      _isSharing = true;
+    });
+
+    try {
+      final displayName = widget.user.displayName ?? widget.user.name ?? 'User';
+      final success = await widget.serviceManager.shareService.shareQRCode(
+        widget.user,
+        message: 'Connect with $displayName on GBCC Connect! 📱\n\n'
+            'Scan this QR code to automatically add this contact to your address book. '
+            'The QR code contains all contact information including name, email, phone, and social media links.\n\n'
+            'Download GBCC Connect app to scan and connect!',
+      );
+
+      if (success) {
+        context.showSuccessSnackBar('QR code shared successfully!');
+      } else {
+        context.showWarningSnackBar(
+            'Sharing was cancelled or failed. The QR code has been copied to clipboard as a fallback.');
+      }
+    } catch (e) {
+      context.showErrorSnackBar('Error sharing QR code: ${e.toString()}');
+    } finally {
+      setState(() {
+        _isSharing = false;
+      });
+    }
+  }
+
+  /// Share user profile as text
+  Future<void> _shareProfile() async {
+    setState(() {
+      _isSharing = true;
+    });
+
+    try {
+      final success = await widget.serviceManager.shareService.shareUserProfile(
+        widget.user,
+        message: 'Connect with me on GBCC Connect!',
+      );
+
+      if (success) {
+        context.showSuccessSnackBar('Profile shared successfully!');
+      } else {
+        context.showWarningSnackBar(
+            'Sharing was cancelled or failed. Profile information has been copied to clipboard as a fallback.');
+      }
+    } catch (e) {
+      context.showErrorSnackBar('Error sharing profile: ${e.toString()}');
+    } finally {
+      setState(() {
+        _isSharing = false;
+      });
+    }
+  }
+
+  /// Share profile link
+  Future<void> _shareLink() async {
+    setState(() {
+      _isSharing = true;
+    });
+
+    try {
+      final success = await widget.serviceManager.shareService.shareProfileLink(
+        widget.user,
+        message: 'Connect with me on GBCC Connect!',
+      );
+
+      if (success) {
+        context.showSuccessSnackBar('Profile link shared successfully!');
+      } else {
+        context.showWarningSnackBar(
+            'Sharing was cancelled or failed. Profile link has been copied to clipboard as a fallback.');
+      }
+    } catch (e) {
+      context.showErrorSnackBar('Error sharing profile link: ${e.toString()}');
+    } finally {
+      setState(() {
+        _isSharing = false;
+      });
+    }
   }
 }

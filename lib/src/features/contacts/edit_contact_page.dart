@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:gbcc_connect_app/src/shared/widgets/custom_snackbar.dart';
 import '../../core/models/contact.dart';
-import '../../core/models/user.dart';
 import '../../core/services/service_manager.dart';
 import '../../app.dart';
 

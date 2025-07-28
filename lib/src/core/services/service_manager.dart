@@ -4,6 +4,8 @@ import 'conversation_service.dart';
 import 'message_service.dart';
 import 'contact_service.dart';
 import 'email_service.dart';
+import 'qr_code_service.dart';
+import 'share_service.dart';
 
 /// App-Level Provider: ServiceManager
 /// Mission: Coordinate service initialization and provide access to all services
@@ -25,6 +27,8 @@ class ServiceManager {
   late final MessageService _messageService;
   late final ContactService _contactService;
   late final EmailService _emailService;
+  late final QRCodeService _qrCodeService;
+  late final ShareService _shareService;
 
   // Application state
   bool _isInitialized = false;
@@ -42,6 +46,8 @@ class ServiceManager {
   MessageService get messageService => _messageService;
   ContactService get contactService => _contactService;
   EmailService get emailService => _emailService;
+  QRCodeService get qrCodeService => _qrCodeService;
+  ShareService get shareService => _shareService;
   FirebaseProvider? get firebaseProvider => _firebaseProvider;
 
   /// Initialize all services with an existing FirebaseProvider
@@ -75,6 +81,12 @@ class ServiceManager {
 
       // 6. EmailService (no dependencies)
       _emailService = EmailService.instance;
+
+      // 7. QRCodeService (no dependencies)
+      _qrCodeService = QRCodeService.instance;
+
+      // 8. ShareService (no dependencies)
+      _shareService = ShareService.instance;
 
       _isInitialized = true;
     } catch (e) {
