@@ -19,6 +19,12 @@ class MyApp extends StatelessWidget {
   // Define the primary color
   static const Color primaryColor = Color(0xFF00a6bb);
 
+  // Define the secondary color
+  static const Color secondaryColor = Color(0xFF2C2E65);
+
+  // Define the accent color
+  static const Color accentColor = Color(0xFF2C2E65);
+
   @override
   Widget build(BuildContext context) {
     // Glue the SettingsController to the MaterialApp.
@@ -73,6 +79,11 @@ class MyApp extends StatelessWidget {
               900: primaryColor.withOpacity(1.0),
             }),
             primaryColor: primaryColor,
+            // Add secondary color swatch
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: primaryColor,
+              secondary: secondaryColor,
+            ),
             appBarTheme: const AppBarTheme(
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
@@ -82,6 +93,13 @@ class MyApp extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
+              ),
+            ),
+            // Add secondary button theme
+            outlinedButtonTheme: OutlinedButtonThemeData(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: secondaryColor,
+                side: const BorderSide(color: secondaryColor),
               ),
             ),
             floatingActionButtonTheme: const FloatingActionButtonThemeData(
@@ -161,6 +179,12 @@ class MyApp extends StatelessWidget {
           ),
           darkTheme: ThemeData.dark().copyWith(
             primaryColor: primaryColor,
+            // Add secondary color swatch for dark theme
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: primaryColor,
+              secondary: secondaryColor,
+              brightness: Brightness.dark,
+            ),
             appBarTheme: const AppBarTheme(
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
@@ -170,6 +194,13 @@ class MyApp extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
+              ),
+            ),
+            // Add secondary button theme for dark mode
+            outlinedButtonTheme: OutlinedButtonThemeData(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: secondaryColor,
+                side: const BorderSide(color: secondaryColor),
               ),
             ),
             floatingActionButtonTheme: const FloatingActionButtonThemeData(

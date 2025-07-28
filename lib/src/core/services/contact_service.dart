@@ -79,6 +79,9 @@ class ContactService {
         contactData['email'] = contactData['email'].toString().toLowerCase();
       }
 
+      // Remove client-side updatedAt field to let server set it automatically
+      contactData.remove('updatedAt');
+
       await _firebaseProvider!.updateDocument(
         _collection,
         contactId,

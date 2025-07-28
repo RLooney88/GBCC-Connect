@@ -218,7 +218,7 @@ class _AddContactPageState extends State<AddContactPage> {
                 icon: const Icon(Icons.camera_alt),
                 label: const Text('Scan Business Card'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
+                  backgroundColor: MyApp.accentColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:gbcc_connect_app/src/core/constants/constants.dart';
 import '../providers/auth_provider.dart';
 import '../../app.dart';
+import '../constants/constants.dart';
+import '../../shared/widgets/app_logo.dart';
 
 /// Splash screen that handles initial authentication state
 class AuthSplashScreen extends StatefulWidget {
@@ -62,10 +63,11 @@ class _AuthSplashScreenState extends State<AuthSplashScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // App logo or icon
-                Icon(
-                  Icons.connect_without_contact,
+                AuthLogo(
                   size: 80,
-                  color: Colors.white,
+                  primaryColor: Colors.white,
+                  showAppName: false,
+                  showBackground: false,
                 ),
                 SizedBox(height: 24),
                 // App name

@@ -81,7 +81,10 @@ class _ContactProfilePageState extends State<ContactProfilePage> {
                   context,
                   AppRoutes.editContact,
                   arguments: _contact,
-                );
+                ).then((_) {
+                  // Refresh contact data when returning from edit page
+                  _loadContact();
+                });
               },
             ),
         ],
@@ -430,43 +433,41 @@ class _ContactProfilePageState extends State<ContactProfilePage> {
           ),
 
           // Notes Section
-          if (contact.notes != null && contact.notes!.isNotEmpty) ...[
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Notes',
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Notes',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2d3748),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Text(
+                    contact.notes ?? '',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2d3748),
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                      height: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: Text(
-                      contact.notes!,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
 
           // Additional Information
           const Divider(height: 1),

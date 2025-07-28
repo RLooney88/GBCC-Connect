@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../app.dart';
+import '../../shared/widgets/app_logo.dart';
 
 /// Comprehensive login screen with email/password and social authentication
 class LoginScreen extends StatefulWidget {
@@ -141,21 +142,11 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // App logo and title
-                Icon(
-                  Icons.connect_without_contact,
+                AuthLogo(
                   size: 80,
-                  color: MyApp.primaryColor,
+                  primaryColor: MyApp.primaryColor,
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  'Welcome Back',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
                 const SizedBox(height: 8),
                 Text(
                   'Sign in to continue',

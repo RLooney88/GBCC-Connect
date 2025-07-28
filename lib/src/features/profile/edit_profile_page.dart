@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
 import '../../core/models/user.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/services/service_manager.dart';
 import '../../core/routes/app_routes.dart';
 import '../../app.dart';
@@ -150,6 +152,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
       // Update user using ServiceManager
       await widget.serviceManager.userService
           .updateUser(updatedUser.id, updatedUser);
+
+      // Also update the AuthProvider to refresh user data across the app
+      if (mounted) {
+        final authProvider = context.read<AuthProvider>();
+        await authProvider.updateUser(updatedUser);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

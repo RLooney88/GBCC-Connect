@@ -613,6 +613,8 @@ class _EditContactPageState extends State<EditContactPage> {
       // Create the updated contact object
       final updatedContact = _originalContact!.copyWith(
         name: _nameController.text.trim(),
+        displayName:
+            _nameController.text.trim(), // Update displayName to match name
         email: email,
         phone: _phoneController.text.trim().isEmpty
             ? null
