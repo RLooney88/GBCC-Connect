@@ -15,6 +15,7 @@ import '../../features/conversations/conversations_page.dart';
 import '../../features/conversations/chat_page.dart';
 import '../../features/conversations/contact_selection_page.dart';
 import '../../features/qr_code/qr_code_page.dart';
+import '../../features/qr_code/qr_code_scanner_page.dart';
 import '../../core/models/contact.dart';
 import 'app_routes.dart';
 
@@ -276,6 +277,16 @@ class RouteGenerator {
         return MaterialPageRoute(
           builder: (_) => AuthenticatedPageWrapper(
             child: (context, user, serviceManager) => QRCodePage(
+              user: user,
+              serviceManager: serviceManager,
+            ),
+          ),
+        );
+
+      case AppRoutes.qrCodeScanner:
+        return MaterialPageRoute(
+          builder: (_) => AuthenticatedPageWrapper(
+            child: (context, user, serviceManager) => QRCodeScannerPage(
               user: user,
               serviceManager: serviceManager,
             ),

@@ -20,6 +20,7 @@ class AppRoutes {
   static const String editContact = '/edit-contact';
   static const String contactProfile = '/contact-profile';
   static const String qrCode = '/qr-code';
+  static const String qrCodeScanner = '/qr-code-scanner';
 
   // Conversation routes
   static const String conversations = '/conversations';
@@ -46,6 +47,7 @@ class AppRoutes {
         editContact,
         contactProfile,
         qrCode,
+        qrCodeScanner,
         conversations,
         chat,
         contactSelection,
