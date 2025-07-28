@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:gbcc_connect_app/src/shared/widgets/custom_snackbar.dart';
 import '../../core/models/contact.dart';
 import '../../core/models/user.dart';
 import '../../core/services/service_manager.dart';
@@ -490,7 +491,7 @@ class _AddContactPageState extends State<AddContactPage> {
       }
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar('Failed to scan business card: $e');
+        context.showErrorSnackBar('Failed to scan business card: $e');
       }
     }
   }
@@ -529,7 +530,8 @@ class _AddContactPageState extends State<AddContactPage> {
     });
 
     if (mounted) {
-      _showSuccessSnackBar('Contact information extracted successfully!');
+      context
+          .showSuccessSnackBar('Contact information extracted successfully!');
     }
   }
 
@@ -555,7 +557,8 @@ class _AddContactPageState extends State<AddContactPage> {
 
       if (isDuplicate) {
         if (mounted) {
-          _showErrorSnackBar('A contact with this email already exists.');
+          context
+              .showErrorSnackBar('A contact with this email already exists.');
           setState(() {
             _isLoading = false;
           });
@@ -610,7 +613,7 @@ class _AddContactPageState extends State<AddContactPage> {
       await serviceManager.contactService.createContact(contact);
 
       if (mounted) {
-        _showSuccessSnackBar('Contact saved successfully!');
+        context.showSuccessSnackBar('Contact saved successfully!');
 
         // If we have a returnToChatId, navigate back to chat with the new contact
         if (widget.returnToChatId != null) {
@@ -625,7 +628,7 @@ class _AddContactPageState extends State<AddContactPage> {
       }
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar('Failed to save contact: ${e.toString()}');
+        context.showErrorSnackBar('Failed to save contact: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -637,22 +640,10 @@ class _AddContactPageState extends State<AddContactPage> {
   }
 
   void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    context.showSuccessSnackBar(message);
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    context.showErrorSnackBar(message);
   }
 }

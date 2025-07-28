@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gbcc_connect_app/src/shared/widgets/custom_snackbar.dart';
 import 'package:gbcc_connect_app/src/app.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/services/service_manager.dart';
@@ -182,23 +183,8 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
       try {
         // Show loading indicator
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  const SizedBox(width: 16),
-                  Text(
-                      'Deleting ${_selectedContacts.length} contact${_selectedContacts.length > 1 ? 's' : ''}...'),
-                ],
-              ),
-              duration: const Duration(seconds: 2),
-            ),
-          );
+          context.showWarningSnackBar(
+              'Deleting ${_selectedContacts.length} contact${_selectedContacts.length > 1 ? 's' : ''}...');
         }
 
         // Delete all selected contacts
@@ -215,22 +201,12 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  '${_selectedContacts.length} contact${_selectedContacts.length > 1 ? 's' : ''} deleted successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          context.showSuccessSnackBar(
+              '${_selectedContacts.length} contact${_selectedContacts.length > 1 ? 's' : ''} deleted successfully');
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to delete contacts: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          context.showErrorSnackBar('Failed to delete contacts: $e');
         }
       }
     }
@@ -316,15 +292,11 @@ class _ContactLibraryPageState extends State<ContactLibraryPage> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${contact.name} deleted successfully')),
-          );
+          context.showSuccessSnackBar('${contact.name} deleted successfully');
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete contact: $e')),
-          );
+          context.showErrorSnackBar('Failed to delete contact: $e');
         }
       }
     }

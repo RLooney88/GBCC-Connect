@@ -305,7 +305,7 @@ class _BusinessCardScannerPageState extends State<BusinessCardScannerPage> {
                 icon: const Icon(Icons.camera_alt),
                 label: const Text('Take Photo'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: MyApp.primaryColor,
+                  backgroundColor: Colors.grey.shade600,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -334,7 +334,7 @@ class _BusinessCardScannerPageState extends State<BusinessCardScannerPage> {
             icon: const Icon(Icons.edit),
             label: const Text('Enter Manually'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
+              backgroundColor: MyApp.primaryColor,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
@@ -352,7 +352,7 @@ class _BusinessCardScannerPageState extends State<BusinessCardScannerPage> {
               icon: const Icon(Icons.check),
               label: const Text('Use This Data'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: MyApp.accentColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gbcc_connect_app/src/shared/widgets/custom_snackbar.dart';
 import '../../core/models/contact.dart';
 import '../../core/models/user.dart';
 import '../../core/services/service_manager.dart';
@@ -113,22 +114,7 @@ class _ContactSelectionPageState extends State<ContactSelectionPage> {
     try {
       // Show loading indicator
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 16),
-                Text('Checking contact status...'),
-              ],
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        context.showWarningSnackBar('Checking contact status...');
       }
 
       // Check if the contact is a registered user
@@ -146,12 +132,7 @@ class _ContactSelectionPageState extends State<ContactSelectionPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to check contact status: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        context.showErrorSnackBar('Failed to check contact status: $e');
       }
     }
   }

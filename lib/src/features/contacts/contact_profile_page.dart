@@ -7,6 +7,7 @@ import '../../core/models/user.dart';
 import '../../core/routes/app_routes.dart';
 import '../../app.dart';
 import '../../core/services/service_manager.dart';
+import '../../shared/widgets/custom_snackbar.dart';
 
 class ContactProfilePage extends StatefulWidget {
   final User user;
@@ -253,11 +254,8 @@ class _ContactProfilePageState extends State<ContactProfilePage> {
                         contact.phone != null && contact.phone!.isNotEmpty
                             ? () {
                                 // Handle call action
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Call feature coming soon!'),
-                                  ),
-                                );
+                                context.showWarningSnackBar(
+                                    'Call feature coming soon!');
                               }
                             : null,
                     icon: const Icon(Icons.call),
@@ -563,22 +561,12 @@ class _ContactProfilePageState extends State<ContactProfilePage> {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not launch $url'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          context.showErrorSnackBar('Could not launch $url');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error launching $url: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        context.showErrorSnackBar('Error launching $url: $e');
       }
     }
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gbcc_connect_app/src/core/constants/constants.dart';
+import 'package:gbcc_connect_app/src/shared/widgets/custom_snackbar.dart';
 import '../../core/models/user.dart';
 import '../../core/services/service_manager.dart';
 import '../../core/routes/app_routes.dart';
@@ -153,11 +154,8 @@ class _QRCodePageState extends State<QRCodePage> {
             child: ElevatedButton.icon(
               onPressed: () {
                 // TODO: Implement QR code sharing functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('QR code sharing feature coming soon!'),
-                  ),
-                );
+                context.showWarningSnackBar(
+                    'QR code sharing feature coming soon!');
               },
               icon: const Icon(Icons.share),
               label: const Text('Share QR Code'),

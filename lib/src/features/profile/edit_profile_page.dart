@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:gbcc_connect_app/src/shared/widgets/custom_snackbar.dart';
 import '../../core/models/user.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/service_manager.dart';
@@ -64,13 +65,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     } catch (e) {
       debugPrint('EditProfilePage: Error loading user data: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading profile: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        context.showErrorSnackBar('Error loading profile: ${e.toString()}');
         Navigator.pop(context);
       }
     }
@@ -160,25 +155,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile updated successfully!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        context.showSuccessSnackBar('Profile updated successfully!');
         Navigator.pop(context);
       }
     } catch (e) {
       debugPrint('EditProfilePage: Error saving profile: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving profile: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        context.showErrorSnackBar('Error saving profile: ${e.toString()}');
       }
     } finally {
       if (mounted) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gbcc_connect_app/src/core/constants/constants.dart';
 import 'package:provider/provider.dart';
+import 'package:gbcc_connect_app/src/shared/widgets/custom_snackbar.dart';
 import '../../core/models/user.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/service_manager.dart';
@@ -186,9 +187,7 @@ class ProfilePage extends StatelessWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error signing out: $e')),
-        );
+        context.showErrorSnackBar('Error signing out: $e');
       }
     }
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gbcc_connect_app/src/core/utils/functions.dart';
+import 'package:gbcc_connect_app/src/shared/widgets/custom_snackbar.dart';
 import '../../core/models/user.dart';
 import '../../core/services/service_manager.dart';
 import '../../core/models/message.dart';
@@ -272,7 +273,7 @@ class _ChatPageState extends State<ChatPage> {
       _scrollToBottom();
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar('Failed to send message: ${e.toString()}');
+        context.showErrorSnackBar('Failed to send message: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -617,31 +618,15 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _showCallFeature(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Call feature coming soon!'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+    context.showWarningSnackBar('Call feature coming soon!');
   }
 
   void _showVideoCallFeature(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Video call feature coming soon!'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+    context.showWarningSnackBar('Video call feature coming soon!');
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    context.showErrorSnackBar(message);
   }
 
   Widget _buildUnregisteredUserView(BuildContext context) {
@@ -735,29 +720,14 @@ class _ChatPageState extends State<ChatPage> {
 
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Email client opened successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          context.showSuccessSnackBar('Email client opened successfully');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to open email client'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          context.showErrorSnackBar('Failed to open email client');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send email: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        context.showErrorSnackBar('Failed to send email: $e');
       }
     }
   }
@@ -778,29 +748,14 @@ class _ChatPageState extends State<ChatPage> {
 
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Invitation email opened successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          context.showSuccessSnackBar('Invitation email opened successfully');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to open email client'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          context.showErrorSnackBar('Failed to open email client');
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send invitation: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        context.showErrorSnackBar('Failed to send invitation: $e');
       }
     }
   }

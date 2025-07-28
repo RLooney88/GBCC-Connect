@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:gbcc_connect_app/src/shared/widgets/custom_snackbar.dart';
 import '../../core/models/contact.dart';
+import '../../core/models/user.dart';
 import '../../core/services/service_manager.dart';
 import '../../app.dart';
 
@@ -158,11 +160,8 @@ class _EditContactPageState extends State<EditContactPage> {
                             TextButton(
                               onPressed: () {
                                 // TODO: Implement image picker
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Image picker coming soon!'),
-                                  ),
-                                );
+                                context.showWarningSnackBar(
+                                    'Image picker coming soon!');
                               },
                               child: const Text('Change Photo'),
                             ),
@@ -585,7 +584,7 @@ class _EditContactPageState extends State<EditContactPage> {
       final serviceManager = widget.serviceManager;
 
       if (_originalContact == null) {
-        _showErrorSnackBar('Contact data not found.');
+        context.showErrorSnackBar('Contact data not found.');
         return;
       }
 
@@ -602,7 +601,8 @@ class _EditContactPageState extends State<EditContactPage> {
       if (isDuplicate &&
           email.toLowerCase() != _originalContact!.email.toLowerCase()) {
         if (mounted) {
-          _showErrorSnackBar('A contact with this email already exists.');
+          context
+              .showErrorSnackBar('A contact with this email already exists.');
           setState(() {
             _isLoading = false;
           });
@@ -655,12 +655,12 @@ class _EditContactPageState extends State<EditContactPage> {
           .updateContact(updatedContact.id, updatedContact);
 
       if (mounted) {
-        _showSuccessSnackBar('Contact updated successfully!');
+        context.showSuccessSnackBar('Contact updated successfully!');
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar('Failed to update contact: ${e.toString()}');
+        context.showErrorSnackBar('Failed to update contact: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -672,22 +672,10 @@ class _EditContactPageState extends State<EditContactPage> {
   }
 
   void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    context.showSuccessSnackBar(message);
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    context.showErrorSnackBar(message);
   }
 }

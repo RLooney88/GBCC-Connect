@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
   static const Color secondaryColor = Color(0xFF2C2E65);
 
   // Define the accent color
-  static const Color accentColor = Color(0xFF2C2E65);
+  static const Color accentColor = Color(0xFF035C68);
 
   @override
   Widget build(BuildContext context) {

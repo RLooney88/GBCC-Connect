@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gbcc_connect_app/src/core/utils/functions.dart';
+import 'package:gbcc_connect_app/src/shared/widgets/custom_snackbar.dart';
 import '../../core/models/user.dart';
 import '../../core/services/service_manager.dart';
 import '../../core/models/conversation.dart';
@@ -141,24 +142,13 @@ class _ConversationsPageState extends State<ConversationsPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '${_selectedConversations.length} conversation(s) deleted'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        context.showSuccessSnackBar(
+            '${_selectedConversations.length} conversation(s) deleted');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete conversations: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        context.showErrorSnackBar(
+            'Failed to delete conversations: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -217,24 +207,13 @@ class _ConversationsPageState extends State<ConversationsPage> {
       // Show success message
       if (mounted) {
         final otherUserName = conversation.getDisplayName(widget.user.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Conversation with $otherUserName deleted'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        context.showSuccessSnackBar('Conversation with $otherUserName deleted');
       }
     } catch (e) {
       // Show error message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete conversation: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        context.showErrorSnackBar(
+            'Failed to delete conversation: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -286,23 +265,12 @@ class _ConversationsPageState extends State<ConversationsPage> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Conversation archived'),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        context.showWarningSnackBar('Conversation archived');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to archive conversation: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        context.showErrorSnackBar(
+            'Failed to archive conversation: ${e.toString()}');
       }
     }
   }
