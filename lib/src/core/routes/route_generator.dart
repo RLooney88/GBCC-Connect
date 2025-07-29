@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../features/auth/login_page.dart';
 import '../../features/auth/register_page.dart';
 import '../../features/auth/forgot_password_page.dart';
+import '../../features/auth/email_verification_page.dart';
 import '../../core/widgets/auth_splash_screen.dart';
 import '../../core/widgets/authenticated_page_wrapper.dart';
 import '../../features/dashboard/dashboard_page.dart';
@@ -53,6 +54,11 @@ class RouteGenerator {
       case AppRoutes.forgotPassword:
         return MaterialPageRoute(
           builder: (_) => const ForgotPasswordScreen(),
+        );
+
+      case AppRoutes.emailVerification:
+        return MaterialPageRoute(
+          builder: (_) => const EmailVerificationScreen(),
         );
 
       case AppRoutes.dashboard:

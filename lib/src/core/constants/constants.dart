@@ -165,6 +165,7 @@ class RouteConstants {
   static const String onboarding = '/onboarding';
   static const String forgotPassword = '/forgot-password';
   static const String verifyEmail = '/verify-email';
+  static const String emailVerification = '/email-verification';
   static const String editProfile = '/edit-profile';
   static const String changePassword = '/change-password';
   static const String privacySettings = '/privacy-settings';

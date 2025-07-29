@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../app.dart';
 import '../../shared/widgets/app_logo.dart';
+import '../../core/routes/app_routes.dart';
 
 /// Registration screen with email/password signup
 class RegisterScreen extends StatefulWidget {
@@ -50,11 +51,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
           );
 
       if (result.success) {
-        _navigateToDashboard();
+        _navigateToEmailVerification();
       } else {
-        setState(() {
-          _errorMessage = result.error;
-        });
+        // Handle specific error codes for existing users
+        if (result.errorCode == 'user-already-active') {
+          setState(() {
+            _errorMessage = result.error;
+          });
+
+          // Show a dialog with options
+          _showExistingUserDialog();
+        } else if (result.errorCode == 'wrong-password-for-existing-user') {
+          setState(() {
+            _errorMessage = result.error;
+          });
+
+          // Show a dialog with options
+          _showWrongPasswordDialog();
+        } else {
+          setState(() {
+            _errorMessage = result.error;
+          });
+        }
       }
     } catch (e) {
       setState(() {
@@ -65,6 +83,68 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  /// Show dialog for existing active user
+  void _showExistingUserDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Account Already Exists'),
+          content: Text(
+              'An account with this email already exists and is verified. Would you like to sign in instead?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateToLogin();
+              },
+              child: Text('Sign In'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Show dialog for wrong password
+  void _showWrongPasswordDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Account Already Exists'),
+          content: Text(
+              'An account with this email already exists. Please use the correct password to sign in.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateToLogin();
+              },
+              child: Text('Sign In'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _navigateToEmailVerification() {
+    Navigator.of(context).pushReplacementNamed(AppRoutes.emailVerification);
   }
 
   void _navigateToDashboard() {
