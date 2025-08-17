@@ -18,6 +18,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _isLoading = false;
   bool _emailSent = false;
   String? _errorMessage;
+  String? _lastEmailSent;
+  DateTime? _lastResetAttempt;
 
   @override
   void dispose() {
@@ -29,20 +31,35 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _handlePasswordReset() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final email = _emailController.text.trim();
+
+    // Check if we're trying to resend too quickly (within 60 seconds)
+    if (_lastResetAttempt != null &&
+        DateTime.now().difference(_lastResetAttempt!).inSeconds < 60) {
+      setState(() {
+        _errorMessage =
+            'Please wait a moment before requesting another reset link.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final result = await context.read<AuthProvider>().forgotPassword(
-            _emailController.text.trim(),
-          );
+      final result = await context.read<AuthProvider>().forgotPassword(email);
 
       if (result.success) {
         setState(() {
           _emailSent = true;
+          _lastEmailSent = email;
+          _lastResetAttempt = DateTime.now();
         });
+
+        // Log analytics event
+        _logPasswordResetEvent(email);
       } else {
         setState(() {
           _errorMessage = result.error;
@@ -59,8 +76,39 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
   }
 
+  /// Log password reset event for analytics
+  void _logPasswordResetEvent(String email) {
+    try {
+      // You can add analytics logging here if needed
+      debugPrint('Password reset requested for email: $email');
+    } catch (e) {
+      debugPrint('Error logging password reset event: $e');
+    }
+  }
+
+  /// Handle resend password reset
+  Future<void> _handleResendPasswordReset() async {
+    if (_lastEmailSent == null) return;
+
+    _emailController.text = _lastEmailSent!;
+    await _handlePasswordReset();
+  }
+
   void _navigateToLogin() {
     Navigator.of(context).pop();
+  }
+
+  /// Check if resend is available (60 seconds cooldown)
+  bool get _canResend {
+    if (_lastResetAttempt == null) return true;
+    return DateTime.now().difference(_lastResetAttempt!).inSeconds >= 60;
+  }
+
+  /// Get remaining cooldown time
+  int get _remainingCooldown {
+    if (_lastResetAttempt == null) return 0;
+    final elapsed = DateTime.now().difference(_lastResetAttempt!).inSeconds;
+    return 60 - elapsed;
   }
 
   @override
@@ -151,10 +199,65 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ),
                             textAlign: TextAlign.center,
                           ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Didn\'t receive the email? Check your spam folder or request a new link.',
+                            style: TextStyle(
+                              color: Colors.green[600],
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    // Resend button
+                    if (!_canResend) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Resend available in $_remainingCooldown seconds',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Resend button
+                    ElevatedButton(
+                      onPressed: _canResend ? _handleResendPasswordReset : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[200],
+                        foregroundColor: Colors.grey[600],
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        _canResend
+                            ? 'Resend Reset Link'
+                            : 'Resend Available Soon',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
 
                     // Back to login button
                     ElevatedButton(
@@ -186,13 +289,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.red[200]!),
                         ),
-                        child: Text(
-                          _errorMessage!,
-                          style: TextStyle(
-                            color: Colors.red[700],
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.red[600],
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: TextStyle(
+                                  color: Colors.red[700],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -202,6 +316,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
+                      enabled: !_isLoading,
                       decoration: InputDecoration(
                         labelText: 'Email',
                         hintText: 'Enter your email address',
@@ -218,6 +333,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           borderRadius: BorderRadius.circular(12),
                           borderSide:
                               BorderSide(color: MyApp.primaryColor, width: 1),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.red[300]!),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              BorderSide(color: Colors.red[500]!, width: 1),
                         ),
                       ),
                       validator: (value) {

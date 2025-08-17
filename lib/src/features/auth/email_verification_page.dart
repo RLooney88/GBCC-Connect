@@ -395,13 +395,12 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Email Verification'),
-        backgroundColor: MyApp.primaryColor,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: Colors.grey[800]),
           onPressed: _navigateToLogin,
         ),
       ),
@@ -587,7 +586,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                   decoration: BoxDecoration(
                     color: Colors.blue[50],
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue[200]!),
+                    border: Border.all(color: MyApp.primaryColor),
                   ),
                   child: Column(
                     children: [
@@ -595,14 +594,14 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                         children: [
                           Icon(
                             Icons.info_outline,
-                            color: Colors.blue[700],
+                            color: MyApp.primaryColor,
                             size: 20,
                           ),
                           const SizedBox(width: 8),
                           Text(
                             'Didn\'t receive the email?',
                             style: TextStyle(
-                              color: Colors.blue[700],
+                              color: MyApp.primaryColor,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -612,7 +611,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen>
                       Text(
                         '• Check your spam/junk folder\n• Make sure you entered the correct email\n• Click the verification link in your email\n• Return to this app after clicking the link\n• The app will automatically detect verification when you return to it',
                         style: TextStyle(
-                          color: Colors.blue[700],
+                          color: MyApp.primaryColor,
                           fontSize: 14,
                           height: 1.4,
                         ),

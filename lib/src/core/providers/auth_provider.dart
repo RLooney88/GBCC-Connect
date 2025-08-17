@@ -785,10 +785,33 @@ class AuthProvider extends ChangeNotifier {
 
       await _auth.sendPasswordResetEmail(email: email);
 
+      // Log analytics event
+      await _configService.logEvent(
+        name: 'password_reset_requested',
+        parameters: {
+          'email': email,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+
+      debugPrint(
+          'AuthProvider: Password reset email sent successfully to: $email');
       return AuthResult.success();
     } on firebase_auth.FirebaseAuthException catch (e) {
       debugPrint(
           'AuthProvider: Password reset error: ${e.code} - ${e.message}');
+
+      // Log analytics event for failed password reset
+      await _configService.logEvent(
+        name: 'password_reset_failed',
+        parameters: {
+          'email': email,
+          'error_code': e.code,
+          'error_message': e.message ?? 'Unknown error',
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+
       return AuthResult.error(_getAuthErrorMessage(e));
     } finally {
       _setLoading(false);
@@ -979,6 +1002,19 @@ class AuthProvider extends ChangeNotifier {
         return 'This sign-in method is not enabled.';
       case 'network-request-failed':
         return 'Network error. Please check your connection.';
+      // Password reset specific errors
+      case 'missing-email':
+        return 'Please enter your email address.';
+      case 'invalid-action-code':
+        return 'The password reset link is invalid or has expired. Please request a new one.';
+      case 'expired-action-code':
+        return 'The password reset link has expired. Please request a new one.';
+      case 'user-mismatch':
+        return 'The password reset link is for a different account.';
+      case 'weak-password':
+        return 'The new password is too weak. Please choose a stronger password.';
+      case 'requires-recent-login':
+        return 'For security reasons, please sign in again before changing your password.';
       default:
         return e.message ?? 'An error occurred. Please try again.';
     }
